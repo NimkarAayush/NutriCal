@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { LogoMark, Check } from '@/components/icons';
+import { Button, Alert, inputClass } from '@/components/ui';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -34,75 +36,128 @@ export default function LoginPage() {
         if (error) throw error;
         router.push('/dashboard');
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Authentication error');
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Authentication error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-md border border-gray-100">
-        <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">
-          NutriCal
-        </h1>
-        <p className="text-sm text-center text-gray-500 mb-6">
-          {isSignUp ? 'Create your account to start tracking' : 'Welcome back! Sign in to your account'}
-        </p>
+    <div className="grid min-h-screen bg-paper font-sans text-ink antialiased lg:grid-cols-[1fr_1fr]">
+      {/* Brand panel */}
+      <div className="relative hidden overflow-hidden bg-ink lg:block">
+        <div className="flex h-full flex-col justify-between p-12">
+          <span className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+              <LogoMark className="h-5 w-5" />
+            </span>
+            <span className="display text-lg text-white">NutriCal</span>
+          </span>
 
-        {errorMsg && (
-          <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">
-            {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleAuth} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="••••••••"
-            />
+          <div className="anim-rise">
+            <p className="eyebrow text-white/50">Personal nutrition companion</p>
+            <h1 className="display mt-3 max-w-md text-[44px] leading-[1.05] text-white">
+              Small daily wins, compounded.
+            </h1>
+            <ul className="mt-7 space-y-3 text-[15px] text-white/75">
+              {[
+                'Log meals in plain language',
+                'Hit personalized macro targets',
+                'Stay consistent with goal streaks',
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-emerald-600 py-2.5 font-medium text-white hover:bg-emerald-700 transition disabled:opacity-50"
-          >
-            {loading ? 'Please wait...' : isSignUp ? 'Sign Up' : 'Sign In'}
-          </button>
-        </form>
+          <p className="text-[13px] text-white/40">
+            General nutrition guidance and estimates — not medical advice.
+          </p>
+        </div>
+      </div>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setErrorMsg('');
-            }}
-            className="font-medium text-emerald-600 hover:underline"
-          >
-            {isSignUp ? 'Sign In' : 'Sign Up'}
-          </button>
+      {/* Form panel */}
+      <div className="flex items-center justify-center px-4 py-10 sm:px-8">
+        <div className="anim-rise w-full max-w-[400px]" style={{ '--d': '80ms' } as React.CSSProperties}>
+          <span className="mb-8 flex items-center gap-2 lg:hidden">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white">
+              <LogoMark className="h-5 w-5" />
+            </span>
+            <span className="display text-lg">NutriCal</span>
+          </span>
+
+          <h2 className="display text-[32px]">
+            {isSignUp ? 'Create your account' : 'Welcome back'}
+          </h2>
+          <p className="mt-2 text-[15px] text-muted">
+            {isSignUp
+              ? 'Start tracking in under a minute.'
+              : 'Pick up right where you left off.'}
+          </p>
+
+          {errorMsg && (
+            <div className="mt-5">
+              <Alert tone="danger">{errorMsg}</Alert>
+            </div>
+          )}
+
+          <form onSubmit={handleAuth} className="mt-7 space-y-4">
+            <div>
+              <label htmlFor="email" className="eyebrow mb-1.5 block text-muted">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputClass}
+                placeholder="you@example.com"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="eyebrow mb-1.5 block text-muted">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputClass}
+                placeholder="••••••••"
+              />
+            </div>
+
+            <Button type="submit" size="lg" loading={loading} className="w-full">
+              {isSignUp ? 'Create account' : 'Sign in'}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-muted">
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setErrorMsg('');
+              }}
+              className="font-semibold text-brand-deep hover:underline"
+            >
+              {isSignUp ? 'Sign in' : 'Create account'}
+            </button>
+          </p>
         </div>
       </div>
     </div>

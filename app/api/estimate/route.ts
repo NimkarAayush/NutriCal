@@ -1,18 +1,35 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
 });
 
+// Current stable models per Google's model docs (Sept 2026).
+// 2.0/1.5-family models are shut down and return 404.
 const CANDIDATE_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash',
   'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.7-flash',
 ];
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Safely read a message from an unknown thrown value,
+// matching the previous `err?.message` behavior without using `any`.
+function readErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'message' in err &&
+    typeof (err as { message: unknown }).message === 'string'
+  ) {
+    return (err as { message: string }).message;
+  }
+  return '';
+}
 
 export async function POST(req: Request) {
   try {
@@ -26,7 +43,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'GEMINI_API_KEY is missing in .env.local' }, { status: 500 });
     }
 
-    let lastError: any = null;
+    // Require an authenticated user before calling Gemini.
+    // NOTE: must use the server client here — the browser client cannot
+    // read session cookies inside an API route, which caused false 401s.
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    let lastError: unknown = null;
 
     for (const model of CANDIDATE_MODELS) {
       // Retry up to 2 times per model if a 503 spike occurs
@@ -56,10 +85,15 @@ export async function POST(req: Request) {
             const parsedData = JSON.parse(text);
             return NextResponse.json(parsedData);
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           lastError = err;
           // If 503 temporary overload, pause briefly before retrying or moving on
-          if (err?.status === 'UNAVAILABLE' || err?.message?.includes('503')) {
+          const errStatus =
+            typeof err === 'object' && err !== null && 'status' in err
+              ? (err as { status: unknown }).status
+              : undefined;
+          const errMessage = readErrorMessage(err);
+          if (errStatus === 'UNAVAILABLE' || errMessage.includes('503')) {
             await sleep(1000);
             continue;
           }
@@ -69,10 +103,10 @@ export async function POST(req: Request) {
     }
 
     throw lastError || new Error('All model endpoints unavailable');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Gemini API Error:', error);
     return NextResponse.json(
-      { error: error?.message || 'Failed to estimate nutrition' },
+      { error: readErrorMessage(error) || 'Failed to estimate nutrition' },
       { status: 500 }
     );
   }
