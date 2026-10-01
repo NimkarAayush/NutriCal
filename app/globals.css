@@ -1,57 +1,63 @@
 @import "tailwindcss";
 
 /* ============================================================
-   NutriCal design tokens — Tailwind v4 theme
-   A restrained, premium nutrition-tech system:
-   warm paper neutrals, deep botanical green, one amber accent.
+   NutriCal visual identity v2 — editorial nutrition brand
+   Warm cream paper, charcoal ink, deep botanical green,
+   fresh leaf, restrained coral. Serif display + clean sans.
    ============================================================ */
 
 @theme {
   /* Surfaces & text */
-  --color-paper: #f4f5f1;
-  --color-surface: #ffffff;
-  --color-surface-soft: #eef0ea;
-  --color-ink: #101613;
-  --color-ink-soft: #2b3530;
-  --color-muted: #5c6660;
-  --color-faint: #8b948d;
-  --color-line: #e2e7e1;
-  --color-line-soft: #edf0eb;
+  --color-paper: #faf6ed;
+  --color-surface: #fffdf7;
+  --color-surface-soft: #f2ecdc;
+  --color-ink: #1d1a14;
+  --color-ink-soft: #3a352b;
+  --color-muted: #6f6656;
+  --color-faint: #9c927d;
+  --color-line: #e4dac3;
+  --color-line-soft: #efe8d4;
 
   /* Brand — deep botanical green */
-  --color-brand: #047857;
-  --color-brand-deep: #065f46;
-  --color-brand-ink: #043d2c;
-  --color-brand-soft: #e4f0e8;
-  --color-brand-mist: #f0f6f1;
+  --color-brand: #1e5631;
+  --color-brand-deep: #123d22;
+  --color-brand-ink: #0c2f1b;
+  --color-brand-soft: #e2ecdc;
+  --color-brand-mist: #eff4e8;
 
-  /* Single warm accent (streaks, highlights) */
-  --color-ember: #b45309;
-  --color-ember-soft: #faf0df;
+  /* Fresh leaf — highlights, growth, success */
+  --color-leaf: #5c8a3c;
+  --color-leaf-soft: #e7f0d9;
 
-  /* Macro semantics — muted, data-first */
-  --color-macro-protein: #047857;
+  /* Warm coral — single restrained accent */
+  --color-ember: #cf5f36;
+  --color-ember-deep: #a84824;
+  --color-ember-soft: #f9e7da;
+
+  /* Macro semantics — intentional, data-first */
+  --color-macro-protein: #4338ca;
   --color-macro-carbs: #b45309;
-  --color-macro-fats: #0369a1;
+  --color-macro-fats: #cf5f36;
   --color-danger: #be123c;
   --color-danger-soft: #fbe9ed;
 
   /* Shape */
-  --radius-card: 20px;
-  --radius-panel: 16px;
+  --radius-card: 18px;
+  --radius-panel: 14px;
   --radius-control: 12px;
   --radius-pill: 999px;
 
-  /* Elevation — minimal, only where layering demands it */
-  --shadow-card: 0 1px 2px rgb(16 22 19 / 0.05);
-  --shadow-lift: 0 8px 24px -12px rgb(16 22 19 / 0.18);
-  --shadow-pop: 0 24px 48px -16px rgb(16 22 19 / 0.28);
+  /* Elevation — print-like, minimal */
+  --shadow-card: 0 1px 2px rgb(29 26 20 / 0.06);
+  --shadow-lift: 0 12px 28px -16px rgb(29 26 20 / 0.22);
+  --shadow-pop: 0 28px 56px -20px rgb(29 26 20 / 0.32);
 
   /* Motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
 }
 
 :root {
@@ -75,29 +81,51 @@ body {
   color: var(--color-brand-ink);
 }
 
-/* ---------- Typography helpers ---------- */
+/* ---------- Typography ---------- */
 
 .display {
-  letter-spacing: -0.035em;
-  line-height: 1.02;
-  font-weight: 650;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  line-height: 1.04;
+  font-weight: 560;
+  font-optical-sizing: auto;
+}
+
+.display-italic {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 480;
+  letter-spacing: 0;
 }
 
 .h-tight {
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.015em;
+  line-height: 1.18;
 }
 
 .eyebrow {
   font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .nums {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/* Editorial rule — thin separator with optional label */
+.rule-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rule-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-line);
 }
 
 /* ---------- Interaction base ---------- */
@@ -131,7 +159,7 @@ textarea {
 @keyframes nc-rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -182,7 +210,7 @@ textarea {
 }
 
 .anim-rise {
-  animation: nc-rise 0.5s var(--ease-out) both;
+  animation: nc-rise 0.55s var(--ease-out) both;
   animation-delay: var(--d, 0ms);
 }
 
@@ -196,7 +224,7 @@ textarea {
 
 .bar-grow {
   transform-origin: left center;
-  animation: nc-bar 0.7s var(--ease-out) both;
+  animation: nc-bar 0.8s var(--ease-out) both;
   animation-delay: var(--d, 0ms);
 }
 
@@ -204,7 +232,6 @@ textarea {
   animation: nc-typing 1.2s ease-in-out infinite;
 }
 
-/* Meal row enter/exit */
 @keyframes nc-row-in {
   from {
     opacity: 0;
@@ -220,7 +247,6 @@ textarea {
   animation: nc-row-in 0.3s var(--ease-out) both;
 }
 
-/* Thin scrollbars for chat panes */
 .thin-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;

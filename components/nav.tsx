@@ -43,18 +43,18 @@ export function AppHeader({
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
-        <div className="flex items-center gap-1 sm:gap-2">
+    <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-md">
+      <div className="mx-auto flex h-[68px] max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <button
             onClick={() => router.push('/dashboard')}
-            className="mr-1 flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-2.5 transition hover:bg-surface-soft sm:mr-3"
+            className="mr-1 flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-3 transition hover:bg-surface-soft sm:mr-4"
             aria-label="Go to dashboard"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white">
-              <LogoMark className="h-[18px] w-[18px]" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white">
+              <LogoMark className="h-5 w-5" />
             </span>
-            <span className="display text-[17px] text-ink">NutriCal</span>
+            <span className="display text-[19px] text-ink">NutriCal</span>
           </button>
 
           <nav
@@ -68,13 +68,19 @@ export function AppHeader({
                   key={link.key}
                   onClick={() => router.push(link.href)}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`rounded-full px-3.5 py-2 text-[13.5px] font-semibold transition ${
+                  className={`relative rounded-full px-4 py-2 text-sm font-medium transition ${
                     isActive
-                      ? 'bg-ink text-white'
+                      ? 'text-ink'
                       : 'text-muted hover:bg-surface-soft hover:text-ink'
                   }`}
                 >
                   {link.label}
+                  {isActive && (
+                    <span
+                      className="absolute inset-x-4 -bottom-[1px] h-[2px] rounded-full bg-brand"
+                      aria-hidden="true"
+                    />
+                  )}
                 </button>
               );
             })}
@@ -83,7 +89,7 @@ export function AppHeader({
 
         <div className="flex items-center gap-2 sm:gap-3">
           <div
-            className="flex items-center gap-1.5 rounded-pill border border-line bg-paper px-2.5 py-1.5 text-xs font-semibold text-muted"
+            className="flex items-center gap-1.5 rounded-pill border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-muted"
             title={
               streak > 0
                 ? `${streak} consecutive day(s) hitting daily nutrition targets`
@@ -94,7 +100,7 @@ export function AppHeader({
               className={`h-3.5 w-3.5 ${streak > 0 ? 'text-ember' : 'text-faint'}`}
             />
             <span className="nums">
-              {streak > 0 ? `${streak}d streak` : 'No streak'}
+              {streak > 0 ? `${streak} day streak` : 'No streak'}
             </span>
           </div>
 
@@ -135,7 +141,7 @@ export function MobileNav({ active }: { active: NavKey }) {
               key={link.key}
               onClick={() => router.push(link.href)}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-control text-[11px] font-semibold transition ${
+              className={`flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-control text-[11px] font-semibold transition ${
                 isActive ? 'text-brand-deep' : 'text-faint active:text-ink'
               }`}
             >

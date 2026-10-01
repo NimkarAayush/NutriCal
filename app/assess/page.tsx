@@ -254,13 +254,46 @@ export default function AssessPage() {
                 Starting targets based on our conversation.
               </p>
 
-              {result.collected?.primary_goal && (
-                <p className="mt-4 rounded-panel bg-brand-mist px-4 py-3 text-sm text-brand-ink">
-                  <span className="eyebrow mr-2 text-brand-deep">Goal</span>
-                  <span className="font-semibold">
-                    {result.collected.primary_goal}
-                  </span>
-                </p>
+              {result.collected && (
+                <div className="mt-4 rounded-panel bg-brand-mist px-4 py-3.5">
+                  <p className="eyebrow mb-2 text-brand-deep">
+                    What you told us
+                  </p>
+                  <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px] text-brand-ink">
+                    {result.collected.primary_goal && (
+                      <li>
+                        <span className="text-brand-deep/70">Goal — </span>
+                        <span className="font-semibold">
+                          {result.collected.primary_goal}
+                        </span>
+                      </li>
+                    )}
+                    {result.collected.activity_level && (
+                      <li>
+                        <span className="text-brand-deep/70">Activity — </span>
+                        <span className="font-semibold">
+                          {result.collected.activity_level}
+                        </span>
+                      </li>
+                    )}
+                    {result.collected.diet_type && (
+                      <li>
+                        <span className="text-brand-deep/70">Diet — </span>
+                        <span className="font-semibold">
+                          {result.collected.diet_type}
+                        </span>
+                      </li>
+                    )}
+                    {result.collected.meals_per_day != null && (
+                      <li>
+                        <span className="text-brand-deep/70">Meals — </span>
+                        <span className="font-semibold">
+                          {result.collected.meals_per_day}/day
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
               )}
 
               <dl className="mt-4 grid grid-cols-2 gap-3">

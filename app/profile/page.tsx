@@ -180,13 +180,13 @@ export default function ProfilePage() {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-          raw: String(error),
-        });
+        // Single string so the Next.js overlay shows the real message
+        // instead of an opaque object preview.
+        console.error(
+          `Error fetching profile: ${error.message} (${error.code})` +
+            (error.details ? ` — ${error.details}` : '') +
+            (error.hint ? ` Hint: ${error.hint}` : '')
+        );
       }
 
       if (data) {
@@ -249,6 +249,7 @@ export default function ProfilePage() {
       }
 
       const profileData = {
+        id: user.id,
         user_id: user.id,
         full_name: form.full_name.trim(),
         age: form.age ? parseInt(form.age) : null,
@@ -273,23 +274,15 @@ export default function ProfilePage() {
         foods_to_avoid: form.foods_to_avoid.trim() || null,
       };
 
-      if (profileId) {
-        // Update existing profile
-        const { error } = await supabase
-          .from('profiles')
-          .update(profileData)
-          .eq('id', profileId);
-        if (error) throw error;
-      } else {
-        // Insert new profile
-        const { data, error } = await supabase
-          .from('profiles')
-          .insert([profileData])
-          .select()
-          .single();
-        if (error) throw error;
-        if (data) setProfileId(data.id);
-      }
+      // Upsert handles both inserting and updating automatically!
+      const { data, error } = await supabase
+        .from('profiles')
+        .upsert([profileData])
+        .select()
+        .single();
+        
+      if (error) throw error;
+      if (data) setProfileId(data.id);
 
       setSuccess('Profile saved successfully');
       setTimeout(() => setSuccess(''), 3000);

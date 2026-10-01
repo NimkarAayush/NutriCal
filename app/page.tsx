@@ -1,47 +1,62 @@
 import Link from 'next/link';
-import { LogoMark, Spark, Target, Chat, Check, ArrowLeft } from '@/components/icons';
+import { LogoMark, Leaf, Target, Chat, ArrowRight } from '@/components/icons';
 
-function Feature({
-  icon,
-  title,
-  body,
-  delay,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  delay?: string;
-}) {
-  return (
-    <div
-      className="anim-rise rounded-card border border-line bg-surface p-6 shadow-card"
-      style={{ '--d': delay ?? '0ms' } as React.CSSProperties}
-    >
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-panel bg-brand-soft text-brand-deep">
-        {icon}
-      </div>
-      <h3 className="h-tight text-[17px] font-semibold text-ink">{title}</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-muted">{body}</p>
-    </div>
-  );
-}
+const DAY_MEALS = [
+  {
+    tag: 'Breakfast · 8:10',
+    name: 'Oats, banana & milk',
+    detail: 'Protein 14g · Carbs 68g · Fat 9g',
+    kcal: '412 kcal',
+  },
+  {
+    tag: 'Lunch · 1:20',
+    name: 'Paneer rice bowl',
+    detail: 'Protein 28g · Carbs 74g · Fat 18g',
+    kcal: '568 kcal',
+  },
+  {
+    tag: 'Snack · 4:45',
+    name: 'Greek yogurt & fruit',
+    detail: 'Protein 18g · Carbs 24g · Fat 4g',
+    kcal: '214 kcal',
+  },
+  {
+    tag: 'Dinner · 8:00',
+    name: 'Dal, roti & vegetables',
+    detail: 'Protein 22g · Carbs 71g · Fat 12g',
+    kcal: '486 kcal',
+  },
+];
+
+const MACROS = [
+  { label: 'Protein', value: '112g', target: '140g', pct: 80, bar: 'bg-macro-protein', note: 'eggs · dal · yogurt' },
+  { label: 'Carbs', value: '208g', target: '250g', pct: 66, bar: 'bg-macro-carbs', note: 'oats · rice · roti' },
+  { label: 'Fats', value: '51g', target: '65g', pct: 58, bar: 'bg-macro-fats', note: 'milk · paneer · nuts' },
+];
+
+const GOALS = [
+  { label: 'Daily calories', value: '2,200', unit: 'kcal' },
+  { label: 'Protein', value: '140', unit: 'g' },
+  { label: 'Carbs', value: '250', unit: 'g' },
+  { label: 'Fats', value: '65', unit: 'g' },
+];
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-paper font-sans text-ink antialiased">
-      {/* Top bar */}
-      <header className="border-b border-line bg-surface/85 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <span className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white">
-              <LogoMark className="h-[18px] w-[18px]" />
+      {/* Masthead */}
+      <header className="border-b border-line">
+        <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between px-4 sm:px-6">
+          <span className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white">
+              <LogoMark className="h-5 w-5" />
             </span>
-            <span className="display text-[17px]">NutriCal</span>
+            <span className="display text-[19px]">NutriCal</span>
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Link
               href="/login"
-              className="rounded-full px-4 py-2 text-sm font-semibold text-muted transition hover:bg-surface-soft hover:text-ink"
+              className="rounded-full px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface-soft hover:text-ink"
             >
               Sign in
             </Link>
@@ -49,185 +64,396 @@ export default function LandingPage() {
               href="/login"
               className="pressable rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-soft"
             >
-              Get started
+              Start tracking
             </Link>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 pb-20 sm:px-6">
-        {/* Hero */}
-        <section className="grid items-center gap-10 pb-14 pt-12 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
-          <div>
-            <p
-              className="anim-rise mb-4 inline-flex items-center gap-1.5 rounded-pill border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-brand-deep"
-              style={{ '--d': '0ms' } as React.CSSProperties}
-            >
-              <Spark className="h-3.5 w-3.5" />
-              AI-powered nutrition companion
-            </p>
-            <h1
-              className="display anim-rise text-[42px] text-ink sm:text-[56px]"
-              style={{ '--d': '60ms' } as React.CSSProperties}
-            >
-              Know what you eat. Eat with intent.
-            </h1>
-            <p
-              className="anim-rise mt-5 max-w-md text-[17px] leading-relaxed text-muted"
-              style={{ '--d': '120ms' } as React.CSSProperties}
-            >
-              Log meals in plain language, track calories and macros against
-              personalized targets, and get guidance from an AI coach that
-              knows your goals.
-            </p>
+      <main>
+        {/* ============ HERO — editorial, asymmetric ============ */}
+        <section className="mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6 sm:pt-16 lg:pt-20">
+          <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
+            <div className="max-w-xl">
+              <p
+                className="anim-rise flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-brand-deep"
+                style={{ '--d': '0ms' } as React.CSSProperties}
+              >
+                <Leaf className="h-4 w-4" />
+                A personal nutrition companion
+              </p>
+              <h1
+                className="display anim-rise mt-5 text-[48px] leading-[1.02] sm:text-[68px]"
+                style={{ '--d': '70ms' } as React.CSSProperties}
+              >
+                Understand what{' '}
+                <em className="display-italic text-brand-deep">you</em> eat.
+              </h1>
+              <p
+                className="anim-rise mt-6 max-w-md text-[17px] leading-relaxed text-muted"
+                style={{ '--d': '140ms' } as React.CSSProperties}
+              >
+                NutriCal turns your everyday meals into a clear picture of
+                your calories, macros and nutrition — so you know what to do
+                next.
+              </p>
+              <div
+                className="anim-rise mt-8 flex flex-wrap items-center gap-3"
+                style={{ '--d': '210ms' } as React.CSSProperties}
+              >
+                <Link
+                  href="/login"
+                  className="pressable inline-flex items-center gap-2 rounded-full bg-brand px-7 py-3.5 text-[15px] font-semibold text-white shadow-card transition hover:bg-brand-deep"
+                >
+                  Start tracking
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  href="#how"
+                  className="pressable inline-flex items-center gap-2 rounded-full border border-line bg-surface px-7 py-3.5 text-[15px] font-semibold text-ink-soft transition hover:border-muted"
+                >
+                  See how it works
+                </Link>
+              </div>
+              <p
+                className="anim-rise mt-6 text-[13px] text-faint"
+                style={{ '--d': '260ms' } as React.CSSProperties}
+              >
+                Free to start · No credit card · Your data stays yours
+              </p>
+            </div>
+
+            {/* Today snapshot — the product, working */}
             <div
-              className="anim-rise mt-7 flex flex-wrap items-center gap-3"
+              className="anim-rise lg:pt-6"
               style={{ '--d': '180ms' } as React.CSSProperties}
             >
-              <Link
-                href="/login"
-                className="pressable inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-[15px] font-semibold text-white shadow-card transition hover:bg-brand-deep"
-              >
-                Start tracking free
-              </Link>
-              <Link
-                href="/dashboard"
-                className="pressable inline-flex items-center gap-2 rounded-full border border-line bg-surface px-6 py-3 text-[15px] font-semibold text-ink-soft transition hover:border-muted"
-              >
-                Open dashboard
-                <ArrowLeft className="h-4 w-4 rotate-180" />
-              </Link>
-            </div>
-            <ul
-              className="anim-rise mt-7 space-y-2 text-sm text-muted"
-              style={{ '--d': '240ms' } as React.CSSProperties}
-            >
-              {[
-                'Natural-language meal logging with AI estimates',
-                'Personalized calorie and macro targets',
-                'Goal streaks that keep you consistent',
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2.5">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
-                    <Check className="h-3 w-3" />
+              <div className="rounded-card border border-line bg-surface p-7 shadow-lift sm:p-8">
+                <div className="flex items-baseline justify-between">
+                  <p className="eyebrow text-faint">Today</p>
+                  <p className="text-xs text-faint">Wed, Sep 30</p>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="nums display text-6xl sm:text-7xl">
+                    1,842
                   </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
+                  <span className="text-sm text-faint">
+                    kcal <span className="nums">of 2,200</span>
+                  </span>
+                </div>
+                <div
+                  className="mt-4 h-2 overflow-hidden rounded-full bg-surface-soft"
+                  role="img"
+                  aria-label="84 percent of calorie target"
+                >
+                  <div
+                    className="bar-grow h-full w-[84%] rounded-full bg-brand"
+                    style={{ '--d': '350ms' } as React.CSSProperties}
+                  />
+                </div>
+                <div className="mt-6 space-y-4">
+                  {[
+                    { label: 'Protein', v: '112g', t: '140g', pct: 80, bar: 'bg-macro-protein' },
+                    { label: 'Carbs', v: '208g', t: '250g', pct: 66, bar: 'bg-macro-carbs' },
+                    { label: 'Fats', v: '51g', t: '65g', pct: 58, bar: 'bg-macro-fats' },
+                  ].map((m, i) => (
+                    <div key={m.label} className="flex items-center gap-3">
+                      <span className="w-14 text-[13px] font-medium text-muted">
+                        {m.label}
+                      </span>
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-soft">
+                        <div
+                          className={`bar-grow h-full rounded-full ${m.bar}`}
+                          style={{ width: `${m.pct}%`, '--d': `${450 + i * 100}ms` } as React.CSSProperties}
+                        />
+                      </div>
+                      <span className="nums w-[92px] text-right text-[13px] text-muted">
+                        {m.v} <span className="text-faint">/ {m.t}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-6 border-t border-line-soft pt-4 text-sm leading-relaxed text-ink-soft">
+                  You&apos;re <strong className="nums font-semibold">358 kcal</strong> away
+                  from your daily target.
+                </p>
+              </div>
+              <p className="mt-3 text-center text-xs text-faint">
+                An actual NutriCal day — not a mockup style.
+              </p>
+            </div>
           </div>
+        </section>
 
-          {/* Product snapshot */}
-          <div
-            className="anim-rise rounded-card border border-line bg-surface p-6 shadow-lift sm:p-7"
-            style={{ '--d': '200ms' } as React.CSSProperties}
-            aria-label="NutriCal dashboard preview"
-          >
-            <p className="eyebrow text-faint">Today&apos;s energy</p>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="nums display text-5xl text-ink">1,420</span>
-              <span className="text-sm text-faint">/ 2,200 kcal</span>
+        {/* ============ FROM MEAL TO INSIGHT ============ */}
+        <section id="how" className="border-t border-line">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <div className="max-w-2xl">
+              <p className="eyebrow text-brand-deep">From meal to insight</p>
+              <h2 className="display mt-3 text-4xl sm:text-5xl">
+                You eat. <em className="display-italic">NutriCal</em> does the
+                maths.
+              </h2>
+              <p className="mt-4 max-w-lg text-[16px] leading-relaxed text-muted">
+                Just write what you had, the way you&apos;d say it. NutriCal
+                estimates the nutrition and files it into your day.
+              </p>
             </div>
-            <div
-              className="mt-4 h-2 overflow-hidden rounded-full bg-surface-soft"
-              role="img"
-              aria-label="65 percent of calorie target"
-            >
-              <div
-                className="bar-grow h-full w-[65%] rounded-full bg-brand"
-                style={{ '--d': '300ms' } as React.CSSProperties}
-              />
+
+            <div className="mt-10 grid gap-x-10 gap-y-8 lg:grid-cols-[0.95fr_1.05fr]">
+              {/* Meal log example */}
+              <div className="anim-rise rounded-card border border-line bg-surface p-6 shadow-card sm:p-7">
+                <p className="eyebrow text-faint">A day of eating</p>
+                <ul className="mt-4 divide-y divide-line-soft">
+                  {DAY_MEALS.map((m) => (
+                    <li key={m.name} className="flex items-baseline justify-between gap-4 py-3.5">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-faint">
+                          {m.tag}
+                        </p>
+                        <p className="mt-0.5 font-display text-[19px] font-medium tracking-tight">
+                          {m.name}
+                        </p>
+                        <p className="mt-0.5 text-[13px] text-muted">{m.detail}</p>
+                      </div>
+                      <span className="nums shrink-0 text-[15px] font-semibold">
+                        {m.kcal}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* What the user gets */}
+              <div className="flex flex-col justify-center">
+                <div className="space-y-7">
+                  {[
+                    {
+                      n: '01',
+                      t: 'Record it simply',
+                      b: '“Dal, roti & vegetables” is enough. No weighing scales, no food codes, no friction.',
+                    },
+                    {
+                      n: '02',
+                      t: 'See the full picture',
+                      b: 'Calories and macros land in your daily totals the moment you log, with progress against your targets.',
+                    },
+                    {
+                      n: '03',
+                      t: 'Know what to do next',
+                      b: 'Short on protein at 7pm? NutriCal says so — and suggests what would close the gap.',
+                    },
+                  ].map((s) => (
+                    <div key={s.n} className="flex gap-5">
+                      <span className="nums display-italic text-2xl text-faint">
+                        {s.n}
+                      </span>
+                      <div>
+                        <h3 className="h-tight text-lg font-semibold">{s.t}</h3>
+                        <p className="mt-1 max-w-md text-[15px] leading-relaxed text-muted">
+                          {s.b}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="mt-6 grid grid-cols-3 gap-4 border-t border-line-soft pt-5">
-              {[
-                { label: 'Protein', value: '96g', target: '140g', pct: 69, bar: 'bg-brand' },
-                { label: 'Carbs', value: '148g', target: '250g', pct: 59, bar: 'bg-ember' },
-                { label: 'Fats', value: '42g', target: '65g', pct: 65, bar: 'bg-macro-fats' },
-              ].map((m, i) => (
-                <div key={m.label}>
-                  <p className="text-xs font-medium text-muted">{m.label}</p>
-                  <p className="nums mt-0.5 text-xl font-semibold tracking-tight text-ink">
+          </div>
+        </section>
+
+        {/* ============ NUTRITION AT A GLANCE ============ */}
+        <section className="border-t border-line bg-surface">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+              <div>
+                <p className="eyebrow text-brand-deep">Nutrition at a glance</p>
+                <h2 className="display mt-3 text-4xl sm:text-5xl">
+                  Four numbers tell the whole story.
+                </h2>
+              </div>
+              <p className="max-w-md text-[15px] leading-relaxed text-muted lg:justify-self-end">
+                No chart overload. Calories set the budget; protein, carbs and
+                fats show the balance. Readable in under five seconds.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-px overflow-hidden rounded-card border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+              <div className="bg-surface p-7">
+                <p className="eyebrow text-faint">Calories</p>
+                <p className="nums display mt-2 text-5xl text-brand-deep">1,842</p>
+                <p className="nums mt-1 text-sm text-muted">of 2,200 kcal · 84%</p>
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-soft">
+                  <div className="bar-grow h-full w-[84%] rounded-full bg-brand" />
+                </div>
+              </div>
+              {MACROS.map((m, i) => (
+                <div key={m.label} className="bg-surface p-7">
+                  <p className="eyebrow text-faint">{m.label}</p>
+                  <p className="nums display mt-2 text-5xl">
                     {m.value}
-                    <span className="ml-1 text-[11px] font-medium text-faint">
+                    <span className="ml-1 align-middle font-sans text-sm font-medium text-faint">
                       / {m.target}
                     </span>
                   </p>
-                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-soft">
+                  <p className="mt-1 text-[13px] text-faint">{m.note}</p>
+                  <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-soft">
                     <div
                       className={`bar-grow h-full rounded-full ${m.bar}`}
-                      style={{ width: `${m.pct}%`, '--d': `${380 + i * 90}ms` } as React.CSSProperties}
+                      style={{ width: `${m.pct}%`, '--d': `${i * 120}ms` } as React.CSSProperties}
                     />
                   </div>
                 </div>
               ))}
             </div>
-            <div className="mt-5 rounded-panel bg-brand-mist px-4 py-3 text-[13px] leading-relaxed text-brand-ink">
-              <span className="font-semibold">Coach insight — </span>
-              44g of protein to go. A Greek-yogurt snack after your workout
-              would close the gap.
+          </div>
+        </section>
+
+        {/* ============ PERSONALIZED GOALS ============ */}
+        <section className="border-t border-line">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <div className="grid gap-10 lg:grid-cols-2">
+              <div>
+                <p className="eyebrow text-brand-deep">Personalized goals</p>
+                <h2 className="display mt-3 text-4xl sm:text-5xl">
+                  Targets built for your body, not everybody&apos;s.
+                </h2>
+                <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted">
+                  Tell NutriCal about yourself once — age, weight, activity,
+                  goal — and it calculates starting targets you confirm
+                  yourself. Nothing is ever overwritten silently.
+                </p>
+                <Link
+                  href="/login"
+                  className="pressable mt-6 inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white transition hover:bg-ink-soft"
+                >
+                  Build my plan
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+              <dl className="divide-y divide-line border-y border-line">
+                {GOALS.map((g) => (
+                  <div key={g.label} className="flex items-baseline justify-between py-4">
+                    <dt className="text-[15px] font-medium text-muted">{g.label}</dt>
+                    <dd className="nums display text-3xl">
+                      {g.value}
+                      <span className="ml-1 font-sans text-sm font-medium text-faint">
+                        {g.unit}
+                      </span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
         </section>
 
-        {/* Features */}
-        <section className="border-t border-line pt-12">
-          <p className="eyebrow text-faint">How it works</p>
-          <h2 className="display mt-2 max-w-xl text-3xl text-ink sm:text-4xl">
-            A companion, not just a tracker
-          </h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Feature
-              icon={<Spark className="h-5 w-5" />}
-              title="Log in plain language"
-              body="Type “2 eggs, toast and coffee” and NutriCal estimates calories, protein, carbs and fats instantly."
-              delay="0ms"
-            />
-            <Feature
-              icon={<Target className="h-5 w-5" />}
-              title="Targets that fit you"
-              body="Build a profile once and get calorie and macro targets calculated for your body and goals."
-              delay="80ms"
-            />
-            <Feature
-              icon={<Chat className="h-5 w-5" />}
-              title="Ask your AI coach"
-              body="“What should I eat tonight?” The coach answers with your day, your goals and your diet in mind."
-              delay="160ms"
-            />
+        {/* ============ AI ASSESSMENT + COACH ============ */}
+        <section className="border-t border-line bg-brand-ink text-white">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <p className="eyebrow text-white/50">Guidance, not gimmicks</p>
+            <h2 className="display mt-3 max-w-2xl text-4xl sm:text-5xl">
+              A coach that reads your day before it speaks.
+            </h2>
+
+            <div className="mt-10 grid gap-5 lg:grid-cols-2">
+              {/* Assessment */}
+              <div className="rounded-card bg-white/[0.06] p-7 ring-1 ring-white/10 sm:p-8">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                    <Target className="h-[18px] w-[18px]" />
+                  </span>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">
+                    Daily assessment
+                  </p>
+                </div>
+                <blockquote className="mt-5 font-display text-[22px] font-medium leading-snug">
+                  “Your protein intake is on track today. Adding a
+                  protein-rich snack could help you reach your target.”
+                </blockquote>
+                <p className="mt-4 text-sm leading-relaxed text-white/60">
+                  Every evening, NutriCal studies your meals against your
+                  targets and writes one thoughtful summary — what went well,
+                  what could improve, and the single thing worth focusing on.
+                </p>
+              </div>
+
+              {/* Coach */}
+              <div className="rounded-card bg-white/[0.06] p-7 ring-1 ring-white/10 sm:p-8">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                    <Chat className="h-[18px] w-[18px]" />
+                  </span>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">
+                    AI coach
+                  </p>
+                </div>
+                <div className="mt-5 space-y-3 text-[15px]">
+                  <p className="ml-auto w-fit max-w-[90%] rounded-[18px] rounded-br-md bg-white px-4 py-2.5 text-ink">
+                    What should I eat for dinner?
+                  </p>
+                  <p className="w-fit max-w-[95%] rounded-[18px] rounded-bl-md bg-white/10 px-4 py-3 leading-relaxed text-white ring-1 ring-white/10">
+                    You&apos;re slightly short on protein today. A paneer
+                    bowl, eggs with toast, or dal with curd would help close
+                    the gap.
+                  </p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {['What should I eat next?', 'Am I low on protein?', 'How was my day?'].map(
+                    (chip) => (
+                      <span
+                        key={chip}
+                        className="rounded-pill px-3.5 py-1.5 text-[13px] font-medium text-white/80 ring-1 ring-white/20"
+                      >
+                        {chip}
+                      </span>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="mt-14 overflow-hidden rounded-card bg-ink px-6 py-12 text-center sm:px-12">
-          <h2 className="display mx-auto max-w-lg text-3xl text-white sm:text-4xl">
-            Start your first logged day today
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-white/70">
-            Create an account, complete your profile, and let NutriCal build
-            your personalized nutrition plan.
-          </p>
-          <Link
-            href="/login"
-            className="pressable mt-7 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-[15px] font-semibold text-ink transition hover:bg-brand-soft"
-          >
-            Create free account
-            <ArrowLeft className="h-4 w-4 rotate-180" />
-          </Link>
-          <p className="mt-4 text-xs text-white/50">
-            General nutrition guidance and estimates — not medical advice.
-          </p>
+        {/* ============ FINAL CTA ============ */}
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+          <div className="max-w-2xl">
+            <h2 className="display text-[40px] leading-[1.05] sm:text-[56px]">
+              Know your food.
+              <br />
+              Know your numbers.
+              <br />
+              <em className="display-italic text-brand-deep">
+                Know what to do next.
+              </em>
+            </h2>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                href="/login"
+                className="pressable inline-flex items-center gap-2 rounded-full bg-brand px-8 py-4 text-base font-semibold text-white shadow-card transition hover:bg-brand-deep"
+              >
+                Start with NutriCal
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <p className="mt-5 text-[13px] text-faint">
+              General nutrition guidance and estimates — not medical advice.
+            </p>
+          </div>
         </section>
+      </main>
 
-        <footer className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-line pt-6 text-[13px] text-faint sm:flex-row">
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-7 text-[13px] text-faint sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <span className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-soft text-brand-deep">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
               <LogoMark className="h-3.5 w-3.5" />
             </span>
-            NutriCal — eat with intent
+            <span className="display text-[15px] text-ink">NutriCal</span>
           </span>
-          <span>Built for consistent, everyday nutrition.</span>
-        </footer>
-      </main>
+          <span>Eat with intent. Built for everyday nutrition.</span>
+        </div>
+      </footer>
     </div>
   );
 }

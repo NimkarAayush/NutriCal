@@ -7,13 +7,21 @@ import { X } from './icons';
 
 /* ---------------- Button ---------------- */
 
-type ButtonVariant = 'brand' | 'dark' | 'outline' | 'ghost' | 'danger-ghost';
+type ButtonVariant =
+  | 'brand'
+  | 'dark'
+  | 'light'
+  | 'outline'
+  | 'ghost'
+  | 'danger-ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 const buttonVariants: Record<ButtonVariant, string> = {
   brand:
     'bg-brand text-white hover:bg-brand-deep shadow-card disabled:bg-brand/40',
   dark: 'bg-ink text-white hover:bg-ink-soft shadow-card disabled:opacity-40',
+  light:
+    'bg-white text-ink hover:bg-brand-soft shadow-card disabled:opacity-60',
   outline:
     'border border-line bg-surface text-ink-soft hover:border-muted hover:bg-surface-soft disabled:opacity-40',
   ghost: 'text-muted hover:text-ink hover:bg-surface-soft disabled:opacity-40',

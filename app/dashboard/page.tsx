@@ -13,8 +13,6 @@ import { AppHeader, MobileNav } from '@/components/nav';
 import {
   Button,
   Card,
-  SectionHeading,
-  Progress,
   Badge,
   EmptyState,
   Alert,
@@ -30,8 +28,9 @@ import {
   Spark,
   Target,
   Trash,
-  Calendar,
+  Bowl,
   Chat,
+  ArrowRight,
 } from '@/components/icons';
 
 // --- TYPES ---
@@ -319,6 +318,15 @@ export default function DashboardPage() {
 
   const displayName = nameFromEmail(user?.email);
   const greeting = useMemo(() => greetingFor(new Date()), []);
+  const fullDate = useMemo(
+    () =>
+      new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      }),
+    []
+  );
 
   // --- ACTIONS ---
   const handleSaveGoals = async (e: React.FormEvent) => {
@@ -483,7 +491,7 @@ export default function DashboardPage() {
     return <LoadingState label="Loading NutriCal..." />;
   }
 
-  const macroCards = [
+  const macroRows = [
     {
       label: 'Protein',
       value: totals.protein,
@@ -491,6 +499,7 @@ export default function DashboardPage() {
       unit: 'g',
       percent: proteinPercent,
       bar: 'bg-macro-protein',
+      sources: 'eggs · dal · yogurt',
     },
     {
       label: 'Carbs',
@@ -499,6 +508,7 @@ export default function DashboardPage() {
       unit: 'g',
       percent: carbsPercent,
       bar: 'bg-macro-carbs',
+      sources: 'oats · rice · roti',
     },
     {
       label: 'Fats',
@@ -507,6 +517,7 @@ export default function DashboardPage() {
       unit: 'g',
       percent: fatsPercent,
       bar: 'bg-macro-fats',
+      sources: 'milk · paneer · nuts',
     },
   ];
 
@@ -519,37 +530,32 @@ export default function DashboardPage() {
         onSignOut={handleLogout}
       />
 
-      <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-16">
+      <main className="mx-auto max-w-5xl px-4 pb-28 pt-8 sm:px-6 sm:pt-10 md:pb-16">
         {error && (
-          <div className="mb-5">
+          <div className="mb-6">
             <Alert tone="danger" onDismiss={() => setError('')}>
               {error}
             </Alert>
           </div>
         )}
 
-        {/* 1. Greeting + day controls */}
+        {/* Masthead */}
         <div
-          className="anim-rise mb-6 flex flex-wrap items-end justify-between gap-4"
+          className="anim-rise mb-2 flex flex-wrap items-end justify-between gap-4"
           style={{ '--d': '0ms' } as React.CSSProperties}
         >
-          <div>
+          <div className="max-w-xl">
             <p className="eyebrow text-faint">
-              {selectedDate === todayStr ? 'Today' : formattedDateTitle} ·{' '}
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-              })}
+              {selectedDate === todayStr ? 'Today' : formattedDateTitle} · {fullDate}
             </p>
-            <h1 className="display mt-1.5 text-[30px] sm:text-[36px]">
+            <h1 className="display mt-2 text-[38px] leading-[1.03] sm:text-[52px]">
               {greeting}
               {displayName ? `, ${displayName}` : ''}.
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center rounded-pill border border-line bg-surface p-1 shadow-card">
+          <div className="flex items-center gap-2 pb-1">
+            <div className="flex items-center rounded-pill border border-line bg-surface p-1">
               <button
                 onClick={() => shiftDate(-1)}
                 className="rounded-full p-2 text-muted transition hover:bg-surface-soft hover:text-ink"
@@ -578,7 +584,6 @@ export default function DashboardPage() {
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
-
             {selectedDate !== todayStr && (
               <button
                 onClick={() => setSelectedDate(todayStr)}
@@ -587,180 +592,176 @@ export default function DashboardPage() {
                 Back to today
               </button>
             )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setManualModalOpen(true)}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Manual entry
-            </Button>
           </div>
         </div>
 
-        {/* 2. Energy hero */}
-        <Card
-          className="anim-rise mb-5 overflow-hidden p-6 sm:p-8"
+        {/* 1 · How am I doing — open editorial section */}
+        <section
+          className="anim-rise border-b border-line py-8 sm:py-10"
           style={{ '--d': '60ms' } as React.CSSProperties}
+          aria-label="Today's nutrition"
         >
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="eyebrow text-faint">
-                {selectedDate === todayStr
-                  ? "Today's energy balance"
-                  : `Daily total · ${selectedDate}`}
-              </p>
-              <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="nums display text-5xl sm:text-6xl">
-                  {totals.calories.toLocaleString()}
-                </span>
-                <span className="nums text-lg text-faint">
-                  / {goals.calories.toLocaleString()} kcal
-                </span>
-                <span className="rounded-pill bg-surface-soft px-2.5 py-1 text-xs font-semibold text-muted">
-                  {calPercent}% of target
-                </span>
-              </div>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
-                {remainingCalories >= 0 ? (
-                  <>
-                    <strong className="nums font-semibold text-ink">
-                      {remainingCalories.toLocaleString()} kcal
-                    </strong>{' '}
-                    remaining today. {dailyNote}
-                  </>
-                ) : (
-                  <span className="font-medium text-danger">
-                    {Math.abs(remainingCalories).toLocaleString()} kcal over
-                    target. {dailyNote}
-                  </span>
-                )}
-              </p>
-            </div>
-
-            <div className="w-full lg:max-w-[300px] lg:pb-1.5">
-              <div className="mb-2 flex items-baseline justify-between text-xs font-medium">
-                <span className="text-muted">Daily progress</span>
-                <span className="nums text-faint">{calPercent}%</span>
-              </div>
-              <div
-                className="h-2.5 w-full overflow-hidden rounded-full bg-surface-soft"
-                role="progressbar"
-                aria-valuenow={calPercent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label="Calorie progress"
-              >
-                <div
-                  className={`bar-grow h-full rounded-full ${totals.calories > goals.calories ? 'bg-danger' : 'bg-brand'}`}
-                  style={{ width: `${calPercent}%`, '--d': '200ms' } as React.CSSProperties}
-                />
-              </div>
-              <button
-                onClick={() => setIsEditingGoals(!isEditingGoals)}
-                className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand-deep hover:underline"
-              >
-                <Target className="h-3.5 w-3.5" />
-                {isEditingGoals ? 'Hide targets' : 'Adjust targets'}
-              </button>
-            </div>
+          <p className="rule-label eyebrow text-faint">
+            {selectedDate === todayStr ? "Today's nutrition" : `Daily total · ${selectedDate}`}
+          </p>
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <span className="nums display text-[76px] leading-none sm:text-[104px]">
+              {totals.calories.toLocaleString()}
+            </span>
+            <span className="nums text-lg text-faint">
+              / {goals.calories.toLocaleString()} kcal
+            </span>
+            <span className="rounded-pill bg-surface-soft px-3 py-1 text-xs font-semibold text-muted">
+              {calPercent}% of target
+            </span>
           </div>
+          <div className="mt-4 h-2 max-w-2xl overflow-hidden rounded-full bg-surface-soft">
+            <div
+              className={`bar-grow h-full rounded-full ${totals.calories > goals.calories ? 'bg-danger' : 'bg-brand'}`}
+              style={{ width: `${calPercent}%`, '--d': '250ms' } as React.CSSProperties}
+              role="progressbar"
+              aria-valuenow={calPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Calorie progress"
+            />
+          </div>
+          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted">
+            {remainingCalories >= 0 ? (
+              <>
+                <strong className="nums font-semibold text-ink">
+                  {remainingCalories.toLocaleString()} kcal
+                </strong>{' '}
+                remaining today. {dailyNote}
+              </>
+            ) : (
+              <span className="font-medium text-danger">
+                {Math.abs(remainingCalories).toLocaleString()} kcal over target.{' '}
+                {dailyNote}
+              </span>
+            )}
+          </p>
+          <button
+            onClick={() => setIsEditingGoals(!isEditingGoals)}
+            className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand-deep hover:underline"
+          >
+            <Target className="h-3.5 w-3.5" />
+            {isEditingGoals ? 'Hide targets' : 'Adjust targets'}
+          </button>
+        </section>
 
-          <div className="mt-7 grid grid-cols-1 gap-5 border-t border-line-soft pt-6 sm:grid-cols-3 sm:gap-6">
-            {macroCards.map((m) => (
+        {/* 2 · Macro balance — editorial rows, no boxes */}
+        <section
+          className="anim-rise border-b border-line py-8"
+          style={{ '--d': '120ms' } as React.CSSProperties}
+          aria-label="Macro breakdown"
+        >
+          <div className="grid gap-x-10 gap-y-7 sm:grid-cols-3">
+            {macroRows.map((m, i) => (
               <div key={m.label}>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-[13px] font-medium text-muted">
-                    {m.label}
-                  </span>
-                  <span className="nums text-xs text-faint">{m.percent}%</span>
+                  <p className="text-sm font-medium text-muted">{m.label}</p>
+                  <p className="nums text-xs text-faint">{m.percent}%</p>
                 </div>
-                <p className="nums mt-1 text-[26px] font-semibold tracking-tight">
+                <p className="nums display mt-1 text-[44px] leading-none">
                   {m.value}
-                  <span className="ml-1 text-[13px] font-medium text-faint">
+                  <span className="ml-1.5 font-sans text-sm font-medium text-faint">
                     / {m.target}
                     {m.unit}
                   </span>
                 </p>
-                <Progress
-                  value={m.percent}
-                  colorClass={m.bar}
-                  className="mt-2.5"
-                  label={`${m.label} progress`}
-                />
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-soft">
+                  <div
+                    className={`bar-grow h-full rounded-full ${m.bar}`}
+                    style={{ width: `${m.percent}%`, '--d': `${300 + i * 100}ms` } as React.CSSProperties}
+                    role="progressbar"
+                    aria-valuenow={m.percent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${m.label} progress`}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-faint">{m.sources}</p>
               </div>
             ))}
           </div>
-        </Card>
+        </section>
 
-        {/* 3. AI quick log — primary interaction */}
-        <Card
-          className="anim-rise mb-5 border-brand/20 bg-surface p-6 sm:p-7"
-          style={{ '--d': '120ms' } as React.CSSProperties}
+        {/* 3 · What did you eat — the primary interaction */}
+        <section
+          className="anim-rise py-8 sm:py-10"
+          style={{ '--d': '160ms' } as React.CSSProperties}
+          aria-label="Log a meal"
         >
-          <div className="mb-4 flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white">
-              <Spark className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="h-tight text-[17px] font-semibold">
-                Log with AI
-              </h2>
-              <p className="text-[13px] text-muted">
-                Describe your meal — NutriCal estimates the macros.
-              </p>
-            </div>
+          <div className="max-w-2xl">
+            <p className="eyebrow flex items-center gap-2 text-brand-deep">
+              <Spark className="h-3.5 w-3.5" />
+              Log with AI
+            </p>
+            <h2 className="display mt-2 text-4xl sm:text-5xl">
+              What did you eat?
+            </h2>
           </div>
 
-          <form onSubmit={handleSmartEstimate} className="relative flex items-center">
-            <input
-              type="text"
-              placeholder="e.g. 2 eggs, 2 slices of whole wheat toast, black coffee…"
-              value={quickInput}
-              onChange={(e) => setQuickInput(e.target.value)}
-              aria-label="Describe your meal"
-              className="w-full rounded-pill border border-line bg-paper py-3.5 pl-5 pr-32 text-[15px] text-ink placeholder:text-faint hover:border-muted focus:border-brand focus:bg-surface focus:outline-none focus:ring-2 focus:ring-brand/20"
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={aiLoading || !quickInput.trim()}
-              loading={aiLoading}
-              className="absolute right-1.5 min-w-[104px]"
-            >
-              {aiLoading ? 'Estimating' : 'Estimate'}
-            </Button>
+          <form onSubmit={handleSmartEstimate} className="mt-6 max-w-2xl">
+            <div className="rounded-card border border-line bg-surface p-2 shadow-card transition focus-within:border-brand">
+              <input
+                type="text"
+                placeholder="Oatmeal with banana and milk…"
+                value={quickInput}
+                onChange={(e) => setQuickInput(e.target.value)}
+                aria-label="Describe your meal"
+                className="w-full bg-transparent px-4 py-3.5 font-display text-[22px] font-medium tracking-tight text-ink placeholder:text-faint focus:outline-none"
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft px-2 pb-1 pt-3">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 text-[13px] text-faint">
+                  <span>Try:</span>
+                  {[
+                    '2 boiled eggs, toast & an apple',
+                    'Chicken biryani & raita',
+                    'Whey shake with milk',
+                  ].map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      onClick={() => setQuickInput(example)}
+                      className="font-medium text-muted underline decoration-line underline-offset-[3px] transition hover:text-ink"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setManualModalOpen(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Manual
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={aiLoading || !quickInput.trim()}
+                    loading={aiLoading}
+                  >
+                    {aiLoading ? 'Estimating' : 'Estimate nutrition'}
+                    {!aiLoading && <ArrowRight className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </form>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-faint">
-            <span>Try:</span>
-            {[
-              '2 boiled eggs, 1 slice toast and an apple',
-              '1 bowl chicken biryani with cucumber raita',
-              '1 scoop whey protein with 250ml milk and almonds',
-            ].map((example) => (
-              <button
-                key={example}
-                type="button"
-                onClick={() => setQuickInput(example)}
-                className="font-medium text-muted underline decoration-line underline-offset-[3px] transition hover:text-ink"
-              >
-                {example}
-              </button>
-            ))}
-          </div>
-
           {draftMeal && (
-            <div className="anim-pop mt-5 rounded-panel border border-brand/25 bg-brand-mist p-4 sm:p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="anim-pop mt-5 max-w-2xl rounded-card border border-brand/25 bg-brand-mist p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="eyebrow text-brand-deep">Estimated breakdown</p>
-                  <h3 className="mt-1 text-[15px] font-semibold">
-                    {draftMeal.meal_name}
-                  </h3>
-                  <p className="nums mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px] text-ink-soft">
-                    <strong className="font-semibold text-ink">
+                  <p className="eyebrow text-brand-deep">Estimated · review & add</p>
+                  <p className="display mt-1.5 text-[28px]">{draftMeal.meal_name}</p>
+                  <p className="nums mt-2 flex flex-wrap items-center gap-x-2.5 text-sm text-ink-soft">
+                    <strong className="text-lg font-semibold text-ink">
                       {draftMeal.calories} kcal
                     </strong>
                     <span className="text-faint">·</span>
@@ -782,28 +783,27 @@ export default function DashboardPage() {
                   </Button>
                   <Button
                     type="button"
-                    size="sm"
                     disabled={submitting}
                     loading={submitting}
                     onClick={() => handleCommitMeal(draftMeal)}
                   >
-                    Add to log
+                    Add to today
                   </Button>
                 </div>
               </div>
             </div>
           )}
-        </Card>
+        </section>
 
-        {/* 4. Personalized starting targets */}
+        {/* 4 · Personalized starting targets */}
         {showRecommendation && (
           <Card
-            className="anim-rise mb-5 border-ember/25 bg-ember-soft/40 p-6 sm:p-7"
+            className="anim-rise mb-8 border-ember/25 bg-ember-soft/30 p-6 sm:p-7"
             style={{ '--d': '140ms' } as React.CSSProperties}
           >
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
-                <h2 className="h-tight text-[17px] font-semibold">
+                <h2 className="display text-2xl">
                   Your personalized starting targets
                 </h2>
                 <p className="mt-1 text-[13px] text-muted">
@@ -813,31 +813,24 @@ export default function DashboardPage() {
               <Badge tone="ember">Calculated</Badge>
             </div>
 
-            <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <dl className="mb-5 grid grid-cols-2 gap-x-8 gap-y-3 border-y border-line py-5 sm:grid-cols-4">
               {[
                 { label: 'Calories', value: calculatedGoals.calories.toLocaleString(), unit: 'kcal' },
                 { label: 'Protein', value: calculatedGoals.protein, unit: 'g' },
                 { label: 'Carbs', value: calculatedGoals.carbs, unit: 'g' },
                 { label: 'Fats', value: calculatedGoals.fats, unit: 'g' },
               ].map((g) => (
-                <div
-                  key={g.label}
-                  className="rounded-panel border border-line bg-surface px-4 py-3.5"
-                >
-                  <p className="eyebrow text-faint">{g.label}</p>
-                  <p className="nums mt-1 text-xl font-semibold tracking-tight">
+                <div key={g.label}>
+                  <dt className="eyebrow text-faint">{g.label}</dt>
+                  <dd className="nums display mt-1 text-[28px]">
                     {g.value}
-                    <span className="ml-1 text-xs font-medium text-faint">
+                    <span className="ml-1 font-sans text-xs font-medium text-faint">
                       {g.unit}
                     </span>
-                  </p>
+                  </dd>
                 </div>
               ))}
-            </div>
-
-            <p className="mb-4 text-[13px] text-muted">
-              Starting estimates — you can adjust them anytime.
-            </p>
+            </dl>
 
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={handleAcceptCalculated}>
@@ -850,14 +843,12 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* 5. Targets drawer */}
+        {/* 5 · Targets editor */}
         {isEditingGoals && (
-          <Card className="anim-rise mb-5 p-6 sm:p-7">
+          <Card className="anim-rise mb-8 p-6 sm:p-7">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
-                <h2 className="h-tight text-[17px] font-semibold">
-                  Nutrition targets
-                </h2>
+                <h2 className="display text-2xl">Nutrition targets</h2>
                 <p className="mt-1 text-[13px] text-muted">
                   Fine-tune your daily calorie and macro baseline.
                 </p>
@@ -905,37 +896,38 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* 6. Meals timeline */}
+        {/* 6 · Meals timeline — open rows */}
         <section
-          className="anim-rise"
-          style={{ '--d': '180ms' } as React.CSSProperties}
+          className="anim-rise border-t border-line pt-8"
+          style={{ '--d': '200ms' } as React.CSSProperties}
           aria-label="Logged meals"
         >
-          <SectionHeading
-            eyebrow={selectedDate === todayStr ? "Today's meals" : 'Meals'}
-            title={
-              logs.length === 0
-                ? 'Nothing logged yet'
-                : `${logs.length} meal${logs.length === 1 ? '' : 's'} logged`
-            }
-            hint={logs.length > 0 ? 'Sorted by most recent' : undefined}
-            action={
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/coach')}
-              >
-                <Chat className="h-4 w-4" />
-                Ask coach
-              </Button>
-            }
-          />
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <div>
+              <p className="eyebrow text-faint">
+                {selectedDate === todayStr ? "Today's meals" : 'Meals'}
+              </p>
+              <h2 className="display mt-1 text-3xl">
+                {logs.length === 0
+                  ? 'Nothing logged yet'
+                  : `${logs.length} meal${logs.length === 1 ? '' : 's'} logged`}
+              </h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/coach')}
+            >
+              Ask coach
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
 
           {logs.length === 0 ? (
             <EmptyState
-              icon={<Calendar className="h-5 w-5" />}
-              title="Your nutrition timeline is clear"
-              hint="Use AI quick log above or manual entry to log what you ate for this day."
+              icon={<Bowl className="h-5 w-5" />}
+              title="Your day is a blank plate"
+              hint="Describe a meal above and NutriCal will do the maths."
               action={
                 <Button
                   variant="outline"
@@ -948,7 +940,7 @@ export default function DashboardPage() {
               }
             />
           ) : (
-            <ul className="space-y-2.5">
+            <ul className="divide-y divide-line">
               {logs.map((log, i) => {
                 const timeStr = new Date(log.created_at).toLocaleTimeString(
                   'en-US',
@@ -957,18 +949,18 @@ export default function DashboardPage() {
                 return (
                   <li
                     key={log.id}
-                    className="anim-row-in group flex items-center justify-between gap-3 rounded-panel border border-line bg-surface px-4 py-3.5 shadow-card transition hover:border-muted sm:px-5 sm:py-4"
+                    className="anim-row-in group flex items-center justify-between gap-3 py-4"
                     style={{ '--d': `${Math.min(i, 8) * 40}ms` } as React.CSSProperties}
                   >
-                    <div className="flex min-w-0 items-start gap-3.5">
-                      <span className="nums w-[62px] shrink-0 pt-0.5 text-[11px] font-medium text-faint">
+                    <div className="flex min-w-0 items-baseline gap-4">
+                      <span className="nums w-[64px] shrink-0 text-[12px] font-medium text-faint">
                         {timeStr}
                       </span>
                       <div className="min-w-0">
-                        <h3 className="truncate text-[15px] font-semibold tracking-tight">
+                        <h3 className="truncate font-display text-[19px] font-medium tracking-tight">
                           {log.meal_name}
                         </h3>
-                        <p className="nums mt-1 flex flex-wrap items-center gap-x-2 text-[13px] text-muted">
+                        <p className="nums mt-0.5 flex flex-wrap items-center gap-x-2 text-[13px] text-muted">
                           <strong className="font-semibold text-ink">
                             {log.calories} kcal
                           </strong>
@@ -995,9 +987,12 @@ export default function DashboardPage() {
               })}
             </ul>
           )}
+          <p className="mt-2 text-xs text-faint">
+            {logs.length > 0 ? 'Sorted by most recent.' : ''}
+          </p>
         </section>
 
-        {/* 7. Manual entry */}
+        {/* 7 · Manual entry */}
         {manualModalOpen && (
           <Modal title="Manual meal entry" onClose={() => setManualModalOpen(false)}>
             <form onSubmit={handleManualSubmit} className="space-y-4">
@@ -1065,6 +1060,38 @@ export default function DashboardPage() {
             </form>
           </Modal>
         )}
+
+        {/* 8 · Coach strip */}
+        <section
+          className="anim-rise mt-10 flex flex-col items-start justify-between gap-4 rounded-card bg-brand-ink px-6 py-7 text-white sm:flex-row sm:items-center sm:px-8"
+          style={{ '--d': '220ms' } as React.CSSProperties}
+        >
+          <div>
+            <p className="eyebrow text-white/50">Not sure what&apos;s next?</p>
+            <p className="display mt-1 text-2xl sm:text-[28px]">
+              Ask your coach what to eat tonight.
+            </p>
+          </div>
+          <Button
+            variant="light"
+            onClick={() => router.push('/coach')}
+            className="shrink-0"
+          >
+            Open coach
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </section>
+
+        {/* Footer note */}
+        <footer className="mt-10 border-t border-line pt-5 pb-2 text-[12px] text-faint">
+          <div className="flex items-center gap-2">
+            <Chat className="h-3.5 w-3.5" />
+            <span>
+              NutriCal provides general nutrition guidance and estimates and is
+              not a substitute for professional medical advice.
+            </span>
+          </div>
+        </footer>
       </main>
 
       <MobileNav active="dashboard" />

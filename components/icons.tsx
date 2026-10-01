@@ -140,6 +140,32 @@ export function Spark(props: IconProps) {
   );
 }
 
+export function ArrowRight(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M5 12h14M12 5l7 7-7 7" />
+    </Base>
+  );
+}
+
+export function Leaf(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M5 19C5 9 13 4 20 4c0 8-5 15-15 15Z" />
+      <path d="M5 19c3-5 7-9 12-11" />
+    </Base>
+  );
+}
+
+export function Bowl(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 12h16a8 8 0 0 1-16 0Z" />
+      <path d="M9 8c0-2 1-3 1-5M14 8c0-2 1-3 1-5" />
+    </Base>
+  );
+}
+
 export function DashboardGrid(props: IconProps) {
   return (
     <Base {...props}>
