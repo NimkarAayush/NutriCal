@@ -63,7 +63,7 @@ export async function POST(req: Request) {
         try {
           const response = await ai.models.generateContent({
             model,
-            contents: `Estimate realistic nutrition macros for: "${prompt}". Return valid JSON matching the schema.`,
+            contents: `Estimate realistic nutrition macros for: "${prompt}". Also estimate key micronutrients (vitamin A in mcg, vitamin C in mg, vitamin D in mcg, iron in mg, calcium in mg, potassium in mg); use 0 when negligible. Return valid JSON matching the schema.`,
             config: {
               responseMimeType: 'application/json',
               responseSchema: {
@@ -74,6 +74,12 @@ export async function POST(req: Request) {
                   protein: { type: Type.NUMBER, description: 'Protein in grams' },
                   carbs: { type: Type.NUMBER, description: 'Carbohydrates in grams' },
                   fats: { type: Type.NUMBER, description: 'Fats in grams' },
+                  vitamin_a_mcg: { type: Type.NUMBER, description: 'Estimated vitamin A in micrograms (mcg RAE)' },
+                  vitamin_c_mg: { type: Type.NUMBER, description: 'Estimated vitamin C in milligrams' },
+                  vitamin_d_mcg: { type: Type.NUMBER, description: 'Estimated vitamin D in micrograms' },
+                  iron_mg: { type: Type.NUMBER, description: 'Estimated iron in milligrams' },
+                  calcium_mg: { type: Type.NUMBER, description: 'Estimated calcium in milligrams' },
+                  potassium_mg: { type: Type.NUMBER, description: 'Estimated potassium in milligrams' },
                 },
                 required: ['meal_name', 'calories', 'protein', 'carbs', 'fats'],
               },

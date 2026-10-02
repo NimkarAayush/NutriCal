@@ -32,6 +32,55 @@ function validateMealMacros(data: {
   return null;
 }
 
+// Optional estimated micros: missing values default to 0, while
+// present-but-malformed values are rejected with a 400.
+const MAX_MICRO_AMOUNT = 1000000;
+
+function microAmount(value: unknown): number | null {
+  if (value === undefined || value === null) return 0;
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    value < 0 ||
+    value > MAX_MICRO_AMOUNT
+  ) {
+    return null;
+  }
+  return value;
+}
+
+function extractMicros(data: {
+  vitamin_a_mcg?: unknown;
+  vitamin_c_mg?: unknown;
+  vitamin_d_mcg?: unknown;
+  iron_mg?: unknown;
+  calcium_mg?: unknown;
+  potassium_mg?: unknown;
+}):
+  | { ok: true; values: Record<string, number> }
+  | { ok: false; error: string } {
+  const fields: Array<[string, unknown]> = [
+    ['vitamin_a_mcg', data.vitamin_a_mcg],
+    ['vitamin_c_mg', data.vitamin_c_mg],
+    ['vitamin_d_mcg', data.vitamin_d_mcg],
+    ['iron_mg', data.iron_mg],
+    ['calcium_mg', data.calcium_mg],
+    ['potassium_mg', data.potassium_mg],
+  ];
+  const values: Record<string, number> = {};
+  for (const [name, value] of fields) {
+    const amount = microAmount(value);
+    if (amount === null) {
+      return {
+        ok: false,
+        error: `Invalid ${name}: must be a finite, non-negative number`,
+      };
+    }
+    values[name] = amount;
+  }
+  return { ok: true, values };
+}
+
 function validateGoalTargets(goals: {
   calorie_target?: unknown;
   protein_target?: unknown;
@@ -93,6 +142,11 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: mealError }, { status: 400 });
         }
 
+        const micros = extractMicros(data);
+        if (!micros.ok) {
+          return NextResponse.json({ error: micros.error }, { status: 400 });
+        }
+
         const { error } = await supabase.from('meal_logs').insert([
           {
             user_id: user.id,
@@ -101,6 +155,7 @@ export async function POST(req: Request) {
             protein: data.protein,
             carbs: data.carbs,
             fats: data.fats,
+            ...micros.values,
             logged_date: new Date().toISOString().split('T')[0],
           },
         ]);

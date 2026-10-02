@@ -41,9 +41,28 @@ interface MealLog {
   protein: number;
   carbs: number;
   fats: number;
+  vitamin_a_mcg?: number | null;
+  vitamin_c_mg?: number | null;
+  vitamin_d_mcg?: number | null;
+  iron_mg?: number | null;
+  calcium_mg?: number | null;
+  potassium_mg?: number | null;
   created_at: string;
   logged_date: string;
 }
+
+// Daily reference values (general adult) for estimated micros.
+// Display-only targets, not personalized medical advice.
+const MICRO_TARGETS = [
+  { key: 'vitamin_a_mcg', label: 'Vitamin A', unit: 'mcg', target: 900 },
+  { key: 'vitamin_c_mg', label: 'Vitamin C', unit: 'mg', target: 90 },
+  { key: 'vitamin_d_mcg', label: 'Vitamin D', unit: 'mcg', target: 15 },
+  { key: 'calcium_mg', label: 'Calcium', unit: 'mg', target: 1000 },
+  { key: 'iron_mg', label: 'Iron', unit: 'mg', target: 18 },
+  { key: 'potassium_mg', label: 'Potassium', unit: 'mg', target: 3500 },
+] as const;
+
+type MicroKey = (typeof MICRO_TARGETS)[number]['key'];
 
 interface Goals {
   calories: number;
@@ -111,6 +130,12 @@ export default function DashboardPage() {
     protein: number;
     carbs: number;
     fats: number;
+    vitamin_a_mcg: number;
+    vitamin_c_mg: number;
+    vitamin_d_mcg: number;
+    iron_mg: number;
+    calcium_mg: number;
+    potassium_mg: number;
   } | null>(null);
 
   // Manual Form Inputs
@@ -120,6 +145,12 @@ export default function DashboardPage() {
     protein: '',
     carbs: '',
     fats: '',
+    vitamin_a_mcg: '',
+    vitamin_c_mg: '',
+    vitamin_d_mcg: '',
+    iron_mg: '',
+    calcium_mg: '',
+    potassium_mg: '',
   });
 
   const router = useRouter();
@@ -301,6 +332,24 @@ export default function DashboardPage() {
     );
   }, [logs]);
 
+  // --- MICRO TOTALS (vitamins & minerals) ---
+  const microTotals = useMemo(() => {
+    const sums: Record<MicroKey, number> = {
+      vitamin_a_mcg: 0,
+      vitamin_c_mg: 0,
+      vitamin_d_mcg: 0,
+      iron_mg: 0,
+      calcium_mg: 0,
+      potassium_mg: 0,
+    };
+    for (const item of logs) {
+      for (const key of Object.keys(sums) as MicroKey[]) {
+        sums[key] += Number(item[key]) || 0;
+      }
+    }
+    return sums;
+  }, [logs]);
+
   const remainingCalories = goals.calories - totals.calories;
   const calPercent = Math.min(Math.round((totals.calories / (goals.calories || 1)) * 100), 100);
   const proteinPercent = Math.min(Math.round((totals.protein / (goals.protein || 1)) * 100), 100);
@@ -419,6 +468,12 @@ export default function DashboardPage() {
           protein: Math.round(data.protein || 0),
           carbs: Math.round(data.carbs || 0),
           fats: Math.round(data.fats || 0),
+          vitamin_a_mcg: Math.round(data.vitamin_a_mcg || 0),
+          vitamin_c_mg: Math.round(data.vitamin_c_mg || 0),
+          vitamin_d_mcg: Math.round(data.vitamin_d_mcg || 0),
+          iron_mg: Math.round(data.iron_mg || 0),
+          calcium_mg: Math.round(data.calcium_mg || 0),
+          potassium_mg: Math.round(data.potassium_mg || 0),
         });
       } else {
         setError(data.error || 'Failed to estimate');
@@ -443,6 +498,12 @@ export default function DashboardPage() {
         protein: mealToSave.protein,
         carbs: mealToSave.carbs,
         fats: mealToSave.fats,
+        vitamin_a_mcg: mealToSave.vitamin_a_mcg ?? 0,
+        vitamin_c_mg: mealToSave.vitamin_c_mg ?? 0,
+        vitamin_d_mcg: mealToSave.vitamin_d_mcg ?? 0,
+        iron_mg: mealToSave.iron_mg ?? 0,
+        calcium_mg: mealToSave.calcium_mg ?? 0,
+        potassium_mg: mealToSave.potassium_mg ?? 0,
         logged_date: selectedDate,
       },
     ]);
@@ -454,7 +515,19 @@ export default function DashboardPage() {
       setDraftMeal(null);
       setQuickInput('');
       setManualModalOpen(false);
-      setManualForm({ mealName: '', calories: '', protein: '', carbs: '', fats: '' });
+      setManualForm({
+        mealName: '',
+        calories: '',
+        protein: '',
+        carbs: '',
+        fats: '',
+        vitamin_a_mcg: '',
+        vitamin_c_mg: '',
+        vitamin_d_mcg: '',
+        iron_mg: '',
+        calcium_mg: '',
+        potassium_mg: '',
+      });
       await fetchLogsForDate(user.id, selectedDate);
       await calculateTargetStreak(user.id, goals);
     }
@@ -470,6 +543,12 @@ export default function DashboardPage() {
       protein: Number(manualForm.protein) || 0,
       carbs: Number(manualForm.carbs) || 0,
       fats: Number(manualForm.fats) || 0,
+      vitamin_a_mcg: Number(manualForm.vitamin_a_mcg) || 0,
+      vitamin_c_mg: Number(manualForm.vitamin_c_mg) || 0,
+      vitamin_d_mcg: Number(manualForm.vitamin_d_mcg) || 0,
+      iron_mg: Number(manualForm.iron_mg) || 0,
+      calcium_mg: Number(manualForm.calcium_mg) || 0,
+      potassium_mg: Number(manualForm.potassium_mg) || 0,
     });
   };
 
@@ -992,6 +1071,58 @@ export default function DashboardPage() {
           </p>
         </section>
 
+        {/* 7 · Vitamins & minerals — daily estimated intake */}
+        <section
+          className="anim-rise border-t border-line pt-8"
+          style={{ '--d': '220ms' } as React.CSSProperties}
+          aria-label="Vitamins and minerals"
+        >
+          <p className="eyebrow text-faint">Micronutrients</p>
+          <h2 className="display mt-1 text-3xl">
+            Small nutrients, big picture.
+          </h2>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+            Estimated from your logged meals against general adult daily
+            reference values — useful direction, not a lab report.
+          </p>
+
+          <div className="mt-6 grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+            {MICRO_TARGETS.map((m, i) => {
+              const value = Math.round(microTotals[m.key]);
+              const pct = Math.min(
+                Math.round((microTotals[m.key] / m.target) * 100),
+                100
+              );
+              return (
+                <div key={m.key}>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-sm font-medium text-muted">{m.label}</p>
+                    <p className="nums text-xs text-faint">{pct}%</p>
+                  </div>
+                  <p className="nums display mt-1 text-[34px] leading-none">
+                    {value.toLocaleString()}
+                    <span className="ml-1.5 font-sans text-[13px] font-medium text-faint">
+                      / {m.target.toLocaleString()}
+                      {m.unit}
+                    </span>
+                  </p>
+                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-soft">
+                    <div
+                      className="bar-grow h-full rounded-full bg-leaf"
+                      style={{ width: `${pct}%`, '--d': `${300 + i * 80}ms` } as React.CSSProperties}
+                      role="progressbar"
+                      aria-valuenow={pct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${m.label} progress`}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
         {/* 7 · Manual entry */}
         {manualModalOpen && (
           <Modal title="Manual meal entry" onClose={() => setManualModalOpen(false)}>
@@ -1043,6 +1174,38 @@ export default function DashboardPage() {
                   </Field>
                 ))}
               </div>
+
+              <details className="group rounded-panel border border-line-soft">
+                <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-semibold text-muted transition hover:text-ink">
+                  Vitamins & minerals{' '}
+                  <span className="font-normal text-faint">(optional estimates)</span>
+                </summary>
+                <div className="grid grid-cols-3 gap-3 px-4 pb-4">
+                  {(
+                    [
+                      { label: 'Vit A (mcg)', key: 'vitamin_a_mcg' as const },
+                      { label: 'Vit C (mg)', key: 'vitamin_c_mg' as const },
+                      { label: 'Vit D (mcg)', key: 'vitamin_d_mcg' as const },
+                      { label: 'Iron (mg)', key: 'iron_mg' as const },
+                      { label: 'Calcium (mg)', key: 'calcium_mg' as const },
+                      { label: 'Potassium (mg)', key: 'potassium_mg' as const },
+                    ]
+                  ).map((f) => (
+                    <Field key={f.key} label={f.label}>
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={manualForm[f.key]}
+                        onChange={(e) =>
+                          setManualForm({ ...manualForm, [f.key]: e.target.value })
+                        }
+                        className={inputClass}
+                      />
+                    </Field>
+                  ))}
+                </div>
+              </details>
 
               <div className="flex justify-end gap-2 border-t border-line-soft pt-4">
                 <Button

@@ -92,7 +92,7 @@ User question: ${message}
 
 Respond as a nutrition education and wellness assistant. Be concise, practical, and encouraging. Use the user's context to personalize your response. Do not diagnose or prescribe.
 
-If the user wants to log a meal, return type "log_meal" with the meal data.
+If the user wants to log a meal, return type "log_meal" with the meal data, including estimated micronutrients (vitamin A in mcg, vitamin C in mg, vitamin D in mcg, iron in mg, calcium in mg, potassium in mg; use 0 when negligible).
 If the user wants to change their nutrition goals, return type "change_goals" with the new goals.
 Otherwise, return type "response" with a text response.`,
             config: {
@@ -117,6 +117,12 @@ Otherwise, return type "response" with a text response.`,
                           protein: { type: Type.NUMBER },
                           carbs: { type: Type.NUMBER },
                           fats: { type: Type.NUMBER },
+                          vitamin_a_mcg: { type: Type.NUMBER },
+                          vitamin_c_mg: { type: Type.NUMBER },
+                          vitamin_d_mcg: { type: Type.NUMBER },
+                          iron_mg: { type: Type.NUMBER },
+                          calcium_mg: { type: Type.NUMBER },
+                          potassium_mg: { type: Type.NUMBER },
                           calorie_target: { type: Type.NUMBER },
                           protein_target: { type: Type.NUMBER },
                           carbs_target: { type: Type.NUMBER },
