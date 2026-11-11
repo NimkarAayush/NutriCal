@@ -13,26 +13,28 @@ type ButtonVariant =
   | 'light'
   | 'outline'
   | 'ghost'
+  | 'soft'
   | 'danger-ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 const buttonVariants: Record<ButtonVariant, string> = {
   brand:
-    'bg-brand text-white hover:bg-brand-deep shadow-card disabled:bg-brand/40',
-  dark: 'bg-ink text-white hover:bg-ink-soft shadow-card disabled:opacity-40',
+    'bg-brand text-white hover:bg-brand-deep shadow-card disabled:bg-brand/45',
+  dark: 'bg-ink text-paper hover:bg-ink-soft shadow-card disabled:opacity-40',
   light:
-    'bg-white text-ink hover:bg-brand-soft shadow-card disabled:opacity-60',
+    'bg-surface text-ink border border-line hover:bg-surface-soft shadow-card disabled:opacity-60',
   outline:
-    'border border-line bg-surface text-ink-soft hover:border-muted hover:bg-surface-soft disabled:opacity-40',
+    'border border-line bg-surface text-ink-soft hover:border-faint hover:bg-surface-soft disabled:opacity-40',
   ghost: 'text-muted hover:text-ink hover:bg-surface-soft disabled:opacity-40',
+  soft: 'bg-brand-soft text-brand hover:bg-brand/20 disabled:opacity-50',
   'danger-ghost':
     'text-muted hover:text-danger hover:bg-danger-soft disabled:opacity-40',
 };
 
 const buttonSizes: Record<ButtonSize, string> = {
-  sm: 'px-3.5 py-1.5 text-[13px] rounded-full',
-  md: 'px-5 py-2.5 text-sm rounded-full',
-  lg: 'px-6 py-3 text-[15px] rounded-full',
+  sm: 'px-3.5 py-2 text-[13px] rounded-control',
+  md: 'px-4.5 py-2.5 text-sm rounded-control',
+  lg: 'px-6 py-3.5 text-[15px] rounded-control',
 };
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -100,9 +102,7 @@ export function SectionHeading({
   return (
     <div className="mb-4 flex items-end justify-between gap-4">
       <div>
-        {eyebrow && (
-          <p className="eyebrow mb-1.5 text-faint">{eyebrow}</p>
-        )}
+        {eyebrow && <p className="eyebrow mb-1.5 text-faint">{eyebrow}</p>}
         <h2 className="h-tight text-lg font-semibold text-ink">{title}</h2>
         {hint && <p className="mt-1 text-[13px] text-muted">{hint}</p>}
       </div>
@@ -114,7 +114,7 @@ export function SectionHeading({
 /* ---------------- Form field ---------------- */
 
 export const inputClass =
-  'w-full rounded-control border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-faint hover:border-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50';
+  'w-full rounded-control border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-faint hover:border-faint/60 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 disabled:opacity-50';
 
 export function Field({
   label,
@@ -127,9 +127,11 @@ export function Field({
 }) {
   return (
     <div>
-      <label className="eyebrow mb-1.5 block text-muted">{label}</label>
+      <label className="mb-1.5 block text-[12.5px] font-semibold text-ink-soft">
+        {label}
+      </label>
       {children}
-      {hint && <p className="mt-1 text-xs text-faint">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs leading-relaxed text-faint">{hint}</p>}
     </div>
   );
 }
@@ -171,19 +173,23 @@ export function Progress({
 
 /* ---------------- Badge ---------------- */
 
+type BadgeTone = 'neutral' | 'brand' | 'ember' | 'success' | 'teal';
+
 export function Badge({
   tone = 'neutral',
   children,
   className = '',
 }: {
-  tone?: 'neutral' | 'brand' | 'ember';
+  tone?: BadgeTone;
   children: React.ReactNode;
   className?: string;
 }) {
-  const tones = {
+  const tones: Record<BadgeTone, string> = {
     neutral: 'bg-surface-soft text-muted',
-    brand: 'bg-brand-soft text-brand-deep',
-    ember: 'bg-ember-soft text-ember',
+    brand: 'bg-brand-soft text-brand',
+    ember: 'bg-ember-soft text-ember-deep',
+    success: 'bg-leaf-soft text-leaf',
+    teal: 'bg-teal-soft text-teal',
   };
   return (
     <span
@@ -208,8 +214,8 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-card border border-dashed border-line bg-surface/60 px-6 py-12 text-center">
-      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-surface-soft text-faint">
+    <div className="rounded-panel border border-dashed border-line bg-surface/60 px-6 py-10 text-center">
+      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand">
         {icon}
       </div>
       <h3 className="text-[15px] font-semibold text-ink">{title}</h3>
@@ -236,7 +242,7 @@ export function Alert({
 }) {
   const tones = {
     danger: 'border-danger/25 bg-danger-soft text-danger',
-    success: 'border-brand/25 bg-brand-soft text-brand-deep',
+    success: 'border-brand/25 bg-brand-soft text-brand',
   };
   return (
     <div
@@ -261,7 +267,7 @@ export function Alert({
 
 export function LoadingState({ label = 'Loading...' }: { label?: string }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper">
+    <div className="flex min-h-dvh items-center justify-center bg-paper">
       <div className="flex items-center gap-3">
         <span
           className="h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent"
@@ -296,13 +302,13 @@ export function Modal({
 
   return (
     <div
-      className="anim-fade fixed inset-0 z-50 flex items-end justify-center bg-ink/45 p-0 sm:items-center sm:p-6"
+      className="anim-fade fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
       <div
-        className={`anim-pop w-full ${wide ? 'max-w-lg' : 'max-w-md'} rounded-t-[24px] border border-line bg-surface p-6 shadow-pop sm:rounded-card`}
+        className={`anim-pop thin-scroll max-h-[92dvh] w-full overflow-y-auto ${wide ? 'max-w-2xl' : 'max-w-md'} rounded-t-[24px] border border-line bg-surface p-5 shadow-pop sm:rounded-card sm:p-6`}
       >
         <div className="mb-5 flex items-center justify-between border-b border-line-soft pb-4">
           <h3 className="h-tight text-base font-semibold text-ink">{title}</h3>

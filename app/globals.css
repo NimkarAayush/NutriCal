@@ -1,63 +1,116 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================================
-   NutriCal visual identity v2 — editorial nutrition brand
-   Warm cream paper, charcoal ink, deep botanical green,
-   fresh leaf, restrained coral. Serif display + clean sans.
+   NutriCal design system v3 — premium health-tech
+   Emerald + white, dark emerald navigation, calm data surfaces.
+   Light and dark themes are driven by the same token set.
    ============================================================ */
 
 @theme {
   /* Surfaces & text */
-  --color-paper: #faf6ed;
-  --color-surface: #fffdf7;
-  --color-surface-soft: #f2ecdc;
-  --color-ink: #1d1a14;
-  --color-ink-soft: #3a352b;
-  --color-muted: #6f6656;
-  --color-faint: #9c927d;
-  --color-line: #e4dac3;
-  --color-line-soft: #efe8d4;
+  --color-paper: #f4f7f5;
+  --color-surface: #ffffff;
+  --color-surface-soft: #edf2ef;
+  --color-ink: #0e1f17;
+  --color-ink-soft: #2d4035;
+  --color-muted: #5f7166;
+  --color-faint: #8b9a91;
+  --color-line: #e1e8e3;
+  --color-line-soft: #edf2ef;
 
-  /* Brand — deep botanical green */
-  --color-brand: #1e5631;
-  --color-brand-deep: #123d22;
-  --color-brand-ink: #0c2f1b;
-  --color-brand-soft: #e2ecdc;
-  --color-brand-mist: #eff4e8;
+  /* Brand — emerald */
+  --color-brand: #0f6b46;
+  --color-brand-deep: #0a5335;
+  --color-brand-ink: #063a25;
+  --color-brand-soft: #dff1e7;
+  --color-brand-mist: #f0f8f3;
+
+  /* Secondary — teal */
+  --color-teal: #0d9488;
+  --color-teal-soft: #d7f2ee;
 
   /* Fresh leaf — highlights, growth, success */
-  --color-leaf: #5c8a3c;
-  --color-leaf-soft: #e7f0d9;
+  --color-leaf: #16a34a;
+  --color-leaf-soft: #dcfce7;
 
-  /* Warm coral — single restrained accent */
-  --color-ember: #cf5f36;
-  --color-ember-deep: #a84824;
-  --color-ember-soft: #f9e7da;
+  /* Warm amber — gentle warnings / calculated states */
+  --color-ember: #c47a1a;
+  --color-ember-deep: #9a5a0c;
+  --color-ember-soft: #fdf3e2;
 
   /* Macro semantics — intentional, data-first */
-  --color-macro-protein: #4338ca;
-  --color-macro-carbs: #b45309;
-  --color-macro-fats: #cf5f36;
+  --color-macro-protein: #7c5cd6;
+  --color-macro-protein-soft: #ede8fb;
+  --color-macro-carbs: #d98c1f;
+  --color-macro-carbs-soft: #fbf0dc;
+  --color-macro-fats: #dd6449;
+  --color-macro-fats-soft: #fbe7e2;
   --color-danger: #be123c;
-  --color-danger-soft: #fbe9ed;
+  --color-danger-soft: #fde8ee;
 
   /* Shape */
-  --radius-card: 18px;
+  --radius-card: 20px;
   --radius-panel: 14px;
   --radius-control: 12px;
   --radius-pill: 999px;
 
-  /* Elevation — print-like, minimal */
-  --shadow-card: 0 1px 2px rgb(29 26 20 / 0.06);
-  --shadow-lift: 0 12px 28px -16px rgb(29 26 20 / 0.22);
-  --shadow-pop: 0 28px 56px -20px rgb(29 26 20 / 0.32);
+  /* Elevation — restrained, print-like */
+  --shadow-card: 0 1px 2px rgb(14 31 23 / 0.05), 0 1px 3px rgb(14 31 23 / 0.04);
+  --shadow-lift: 0 10px 30px -18px rgb(14 31 23 / 0.25);
+  --shadow-pop: 0 30px 70px -24px rgb(14 31 23 / 0.35);
 
   /* Motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+}
+
+/* ---------- Dark theme token overrides ---------- */
+
+html.dark {
+  color-scheme: dark;
+
+  --color-paper: #08120d;
+  --color-surface: #0f1d16;
+  --color-surface-soft: #15271d;
+  --color-ink: #e9f2ec;
+  --color-ink-soft: #cfe0d6;
+  --color-muted: #9db1a6;
+  --color-faint: #7e9388;
+  --color-line: #1e3328;
+  --color-line-soft: #182a20;
+
+  --color-brand: #1f9d68;
+  --color-brand-deep: #178a5a;
+  --color-brand-ink: #06120c;
+  --color-brand-soft: #123a29;
+  --color-brand-mist: #0e2a1d;
+
+  --color-teal: #2dd4bf;
+  --color-teal-soft: #0f3330;
+
+  --color-leaf: #34d399;
+  --color-leaf-soft: #103526;
+
+  --color-ember: #f0a03a;
+  --color-ember-deep: #f7b45f;
+  --color-ember-soft: #3a2a13;
+
+  --color-macro-protein: #a78bfa;
+  --color-macro-protein-soft: #241f3a;
+  --color-macro-carbs: #f2b25c;
+  --color-macro-carbs-soft: #332611;
+  --color-macro-fats: #f08b72;
+  --color-macro-fats-soft: #361b16;
+  --color-danger: #fb7185;
+  --color-danger-soft: #3a1520;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.45), 0 1px 3px rgb(0 0 0 / 0.35);
+  --shadow-lift: 0 12px 32px -18px rgb(0 0 0 / 0.7);
+  --shadow-pop: 0 30px 70px -24px rgb(0 0 0 / 0.8);
 }
 
 :root {
@@ -81,32 +134,37 @@ body {
   color: var(--color-brand-ink);
 }
 
+html.dark ::selection {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
 /* ---------- Typography ---------- */
 
 .display {
-  font-family: var(--font-display);
-  letter-spacing: -0.01em;
-  line-height: 1.04;
-  font-weight: 560;
-  font-optical-sizing: auto;
+  font-family: var(--font-sans);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  font-weight: 650;
 }
 
 .display-italic {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 480;
-  letter-spacing: 0;
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  color: var(--color-brand);
 }
 
 .h-tight {
-  letter-spacing: -0.015em;
-  line-height: 1.18;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .eyebrow {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -115,7 +173,6 @@ body {
   font-feature-settings: "tnum";
 }
 
-/* Editorial rule — thin separator with optional label */
 .rule-label {
   display: flex;
   align-items: center;
@@ -147,11 +204,23 @@ textarea {
 *:focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .pressable:active {
-  transform: scale(0.98);
+  transform: scale(0.985);
+}
+
+/* Card that lifts gently on hover — used for actionable cards only. */
+.hover-lift {
+  transition:
+    transform 0.22s var(--ease-out),
+    box-shadow 0.22s var(--ease-out),
+    border-color 0.22s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
 }
 
 /* ---------- Entrance & motion ---------- */
@@ -201,11 +270,46 @@ textarea {
   80%,
   100% {
     transform: translateY(0);
-    opacity: 0.5;
+    opacity: 0.45;
   }
   40% {
     transform: translateY(-4px);
     opacity: 1;
+  }
+}
+
+@keyframes nc-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nc-ring {
+  from {
+    stroke-dashoffset: var(--ring-len);
+  }
+}
+
+@keyframes nc-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes nc-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
   }
 }
 
@@ -232,24 +336,38 @@ textarea {
   animation: nc-typing 1.2s ease-in-out infinite;
 }
 
-@keyframes nc-row-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .anim-row-in {
   animation: nc-row-in 0.3s var(--ease-out) both;
+}
+
+.ring-progress {
+  transition: stroke-dashoffset 1s var(--ease-out);
+}
+
+.chart-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: nc-draw 1.1s var(--ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+
+.chart-bar {
+  transform-origin: bottom;
+  animation: nc-grow-y 0.7s var(--ease-out) both;
+  animation-delay: var(--d, 0ms);
 }
 
 .thin-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* ---------- Accessibility ---------- */

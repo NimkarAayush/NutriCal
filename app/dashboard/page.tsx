@@ -9,7 +9,19 @@ import {
   calculateGoalsFromProfile,
   type ProfileForGoals,
 } from '@/lib/goals';
-import { AppHeader, MobileNav } from '@/components/nav';
+import {
+  addDays,
+  aggregateMealRows,
+  calculateStreak,
+  clampPercent,
+  formatLongDate,
+  formatShortDay,
+  lastNDates,
+  percentOf,
+  todayKey,
+  type DailyTotals,
+} from '@/lib/stats';
+import { AppShell } from '@/components/nav';
 import {
   Button,
   Card,
@@ -19,8 +31,10 @@ import {
   LoadingState,
   Modal,
   Field,
+  Progress,
   inputClass,
 } from '@/components/ui';
+import { ProgressRing, LineChart, ChartLegend, type ChartSeries } from '@/components/charts';
 import {
   Plus,
   ChevronLeft,
@@ -31,6 +45,13 @@ import {
   Bowl,
   Chat,
   ArrowRight,
+  ArrowUpRight,
+  Flame,
+  Dumbbell,
+  Droplet,
+  ChartBar,
+  Plan,
+  Check,
 } from '@/components/icons';
 
 // --- TYPES ---
@@ -51,8 +72,6 @@ interface MealLog {
   logged_date: string;
 }
 
-// Daily reference values (general adult) for estimated micros.
-// Display-only targets, not personalized medical advice.
 const MICRO_TARGETS = [
   { key: 'vitamin_a_mcg', label: 'Vitamin A', unit: 'mcg', target: 900 },
   { key: 'vitamin_c_mg', label: 'Vitamin C', unit: 'mg', target: 90 },
@@ -75,9 +94,9 @@ type GoalsSource = 'saved' | 'calculated' | 'manual' | 'default';
 
 const GOAL_SOURCE_LABEL: Record<GoalsSource, string> = {
   saved: 'Saved targets',
-  calculated: 'Calculated from profile',
-  manual: 'Manually set',
-  default: 'Default targets',
+  calculated: 'Calculated',
+  manual: 'Manual',
+  default: 'Defaults',
 };
 
 function greetingFor(date: Date): string {
@@ -97,33 +116,28 @@ function nameFromEmail(email?: string | null): string | null {
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [logs, setLogs] = useState<MealLog[]>([]);
+  const [weekTotals, setWeekTotals] = useState<Record<string, DailyTotals>>({});
+  const [profileName, setProfileName] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState('');
 
-  // Date Navigation State
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const today = useMemo(() => todayKey(), []);
+  const [selectedDate, setSelectedDate] = useState<string>(today);
+  const [streak, setStreak] = useState(0);
 
-  // Dynamic Goal-Completion Streak State
-  const [streak, setStreak] = useState<number>(0);
-
-  // Goals State
   const [goals, setGoals] = useState<Goals>(DEFAULT_GOALS);
   const [tempGoals, setTempGoals] = useState<Goals>(DEFAULT_GOALS);
-  const [isEditingGoals, setIsEditingGoals] = useState(false);
+  const [goalsModalOpen, setGoalsModalOpen] = useState(false);
   const [goalsSource, setGoalsSource] = useState<GoalsSource>('default');
   const [showRecommendation, setShowRecommendation] = useState(false);
   const [calculatedGoals, setCalculatedGoals] = useState<Goals>(DEFAULT_GOALS);
-
-  // Error State
   const [error, setError] = useState('');
 
-  // Unified Smart Logging State
   const [quickInput, setQuickInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [manualModalOpen, setManualModalOpen] = useState(false);
 
-  // Pending review item from AI or manual entry
   const [draftMeal, setDraftMeal] = useState<{
     meal_name: string;
     calories: number;
@@ -138,7 +152,6 @@ export default function DashboardPage() {
     potassium_mg: number;
   } | null>(null);
 
-  // Manual Form Inputs
   const [manualForm, setManualForm] = useState({
     mealName: '',
     calories: '',
@@ -156,62 +169,6 @@ export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  // --- STREAK CALCULATION (Based on achieving 90%-110% of target calories) ---
-  const calculateTargetStreak = async (userId: string, currentGoals: Goals) => {
-    const { data, error } = await supabase
-      .from('meal_logs')
-      .select('logged_date, calories')
-      .eq('user_id', userId);
-
-    if (error || !data || data.length === 0) {
-      setStreak(0);
-      return;
-    }
-
-    // Sum calories per date
-    const dailyTotals: Record<string, number> = {};
-    data.forEach((row: { logged_date: string; calories: number }) => {
-      dailyTotals[row.logged_date] = (dailyTotals[row.logged_date] || 0) + (Number(row.calories) || 0);
-    });
-
-    const isTargetMet = (dateStr: string) => {
-      const cals = dailyTotals[dateStr] || 0;
-      const target = currentGoals.calories || 2200;
-      return cals >= target * 0.9 && cals <= target * 1.1;
-    };
-
-    const today = new Date().toISOString().split('T')[0];
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterday = yesterdayDate.toISOString().split('T')[0];
-
-    let currentStreak = 0;
-    const checkDate = new Date();
-
-    if (isTargetMet(today)) {
-      currentStreak++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    } else {
-      if (!isTargetMet(yesterday)) {
-        setStreak(0);
-        return;
-      }
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-
-    while (true) {
-      const dateStr = checkDate.toISOString().split('T')[0];
-      if (isTargetMet(dateStr)) {
-        currentStreak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-
-    setStreak(currentStreak);
-  };
-
   const fetchLogsForDate = async (userId: string, dateStr: string) => {
     const { data, error } = await supabase
       .from('meal_logs')
@@ -219,10 +176,31 @@ export default function DashboardPage() {
       .eq('user_id', userId)
       .eq('logged_date', dateStr)
       .order('created_at', { ascending: false });
+    if (!error && data) setLogs(data);
+  };
 
-    if (!error && data) {
-      setLogs(data);
+  const loadWeekTotals = async (userId: string) => {
+    const { data } = await supabase
+      .from('meal_logs')
+      .select('logged_date, calories, protein, carbs, fats')
+      .eq('user_id', userId)
+      .gte('logged_date', addDays(todayKey(), -6))
+      .lte('logged_date', todayKey());
+    setWeekTotals(aggregateMealRows(data ?? []));
+  };
+
+  const loadStreak = async (userId: string, target: number) => {
+    const { data } = await supabase
+      .from('meal_logs')
+      .select('logged_date, calories')
+      .eq('user_id', userId)
+      .gte('logged_date', addDays(todayKey(), -180));
+
+    const byDay: Record<string, number> = {};
+    for (const row of data ?? []) {
+      byDay[row.logged_date] = (byDay[row.logged_date] ?? 0) + (Number(row.calories) || 0);
     }
+    setStreak(calculateStreak(byDay, target));
   };
 
   // --- INITIAL DATA FETCH ---
@@ -236,10 +214,16 @@ export default function DashboardPage() {
         return;
       }
       setUser(user);
-      await fetchLogsForDate(user.id, selectedDate);
 
-      // Load saved user goals from nutrition_goals table
-      let activeGoals = DEFAULT_GOALS;
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileRow?.full_name) setProfileName(profileRow.full_name);
+
+      let activeGoals: Goals = DEFAULT_GOALS;
       let source: GoalsSource = 'default';
 
       const { data: savedGoalsData } = await supabase
@@ -256,29 +240,19 @@ export default function DashboardPage() {
           fats: Number(savedGoalsData.fats_target),
         };
         source = 'saved';
-      } else {
-        // No saved goals — try to calculate from profile
-        const { data: profileRow } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (profileRow) {
-          const profileForGoals: ProfileForGoals = {
-            age: profileRow.age,
-            gender: profileRow.gender,
-            height_cm: profileRow.height_cm,
-            weight_kg: profileRow.weight_kg,
-            activity_level: profileRow.activity_level,
-            primary_goal: profileRow.primary_goal,
-          };
-
-          const result = calculateGoalsFromProfile(profileForGoals);
-          if (result.canCalculate) {
-            setCalculatedGoals(result.goals);
-            setShowRecommendation(true);
-          }
+      } else if (profileRow) {
+        const profileForGoals: ProfileForGoals = {
+          age: profileRow.age,
+          gender: profileRow.gender,
+          height_cm: profileRow.height_cm,
+          weight_kg: profileRow.weight_kg,
+          activity_level: profileRow.activity_level,
+          primary_goal: profileRow.primary_goal,
+        };
+        const result = calculateGoalsFromProfile(profileForGoals);
+        if (result.canCalculate) {
+          setCalculatedGoals(result.goals);
+          setShowRecommendation(true);
         }
       }
 
@@ -286,7 +260,11 @@ export default function DashboardPage() {
       setTempGoals(activeGoals);
       setGoalsSource(source);
 
-      await calculateTargetStreak(user.id, activeGoals);
+      await Promise.all([
+        fetchLogsForDate(user.id, todayKey()),
+        loadWeekTotals(user.id),
+        loadStreak(user.id, activeGoals.calories),
+      ]);
       setLoading(false);
     };
 
@@ -294,45 +272,35 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch logs whenever the selected date changes
-  useEffect(() => {
-    if (user) {
-      const loadLogs = async () => {
-        await fetchLogsForDate(user.id, selectedDate);
-      };
-      void loadLogs();
-    }
-  }, [selectedDate]);
-
-  // Date Shift (+/- days)
-  const shiftDate = (days: number) => {
-    const current = new Date(selectedDate);
-    current.setDate(current.getDate() + days);
-    setSelectedDate(current.toISOString().split('T')[0]);
+  const selectDate = (next: string) => {
+    setSelectedDate(next);
+    if (user) void fetchLogsForDate(user.id, next);
   };
 
-  // Formatted date string (e.g. "Tuesday, Sep 29")
+  const shiftDate = (days: number) => {
+    selectDate(addDays(selectedDate, days));
+  };
+
   const formattedDateTitle = useMemo(() => {
-    if (selectedDate === todayStr) return 'Today';
-    const parts = selectedDate.split('-');
-    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  }, [selectedDate, todayStr]);
+    if (selectedDate === today) return 'Today';
+    return formatLongDate(selectedDate);
+  }, [selectedDate, today]);
 
-  // --- TOTALS COMPUTATION ---
-  const totals = useMemo(() => {
-    return logs.reduce(
-      (acc, item) => ({
-        calories: acc.calories + (Number(item.calories) || 0),
-        protein: acc.protein + (Number(item.protein) || 0),
-        carbs: acc.carbs + (Number(item.carbs) || 0),
-        fats: acc.fats + (Number(item.fats) || 0),
-      }),
-      { calories: 0, protein: 0, carbs: 0, fats: 0 }
-    );
-  }, [logs]);
+  // --- TOTALS ---
+  const totals = useMemo(
+    () =>
+      logs.reduce(
+        (acc, item) => ({
+          calories: acc.calories + (Number(item.calories) || 0),
+          protein: acc.protein + (Number(item.protein) || 0),
+          carbs: acc.carbs + (Number(item.carbs) || 0),
+          fats: acc.fats + (Number(item.fats) || 0),
+        }),
+        { calories: 0, protein: 0, carbs: 0, fats: 0 }
+      ),
+    [logs]
+  );
 
-  // --- MICRO TOTALS (vitamins & minerals) ---
   const microTotals = useMemo(() => {
     const sums: Record<MicroKey, number> = {
       vitamin_a_mcg: 0,
@@ -350,65 +318,109 @@ export default function DashboardPage() {
     return sums;
   }, [logs]);
 
-  const remainingCalories = goals.calories - totals.calories;
-  const calPercent = Math.min(Math.round((totals.calories / (goals.calories || 1)) * 100), 100);
-  const proteinPercent = Math.min(Math.round((totals.protein / (goals.protein || 1)) * 100), 100);
-  const carbsPercent = Math.min(Math.round((totals.carbs / (goals.carbs || 1)) * 100), 100);
-  const fatsPercent = Math.min(Math.round((totals.fats / (goals.fats || 1)) * 100), 100);
+  const remainingCalories = Math.round(goals.calories - totals.calories);
+  const calPercent = clampPercent(percentOf(totals.calories, goals.calories));
+  const proteinPercent = clampPercent(percentOf(totals.protein, goals.protein));
+  const carbsPercent = clampPercent(percentOf(totals.carbs, goals.carbs));
+  const fatsPercent = clampPercent(percentOf(totals.fats, goals.fats));
 
-  // Deterministic daily note, computed from already-loaded numbers.
-  const proteinToGo = goals.protein - totals.protein;
+  const proteinToGo = Math.round(goals.protein - totals.protein);
   const dailyNote =
     proteinToGo > 0
-      ? `${Math.round(proteinToGo)}g of protein to go — a protein-rich dinner would close the gap.`
+      ? `${proteinToGo}g of protein to go — a protein-rich dinner would close the gap.`
       : remainingCalories > 0
-        ? 'Protein target hit. Stay the course through dinner.'
+        ? 'Protein target hit. Stay the course through the rest of the day.'
         : 'Day complete. Review the timeline and plan tomorrow.';
 
-  const displayName = nameFromEmail(user?.email);
+  const displayName = profileName || nameFromEmail(user?.email);
   const greeting = useMemo(() => greetingFor(new Date()), []);
-  const fullDate = useMemo(
-    () =>
-      new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      }),
-    []
+
+  // --- 7-day trend ---
+  const weekDates = useMemo(() => lastNDates(7), []);
+  const trendSeries: ChartSeries[] = useMemo(
+    () => [
+      {
+        key: 'calories',
+        label: 'Calories',
+        color: 'var(--color-brand)',
+        values: weekDates.map((date) => weekTotals[date]?.calories ?? 0),
+      },
+      {
+        key: 'protein',
+        label: 'Protein',
+        color: 'var(--color-macro-protein)',
+        values: weekDates.map((date) => weekTotals[date]?.protein ?? 0),
+      },
+      {
+        key: 'carbs',
+        label: 'Carbs',
+        color: 'var(--color-macro-carbs)',
+        values: weekDates.map((date) => weekTotals[date]?.carbs ?? 0),
+      },
+      {
+        key: 'fats',
+        label: 'Fats',
+        color: 'var(--color-macro-fats)',
+        values: weekDates.map((date) => weekTotals[date]?.fats ?? 0),
+      },
+    ],
+    [weekDates, weekTotals]
   );
+  const trendLabels = useMemo(
+    () => weekDates.map((date) => (date === today ? 'Today' : formatShortDay(date))),
+    [weekDates, today]
+  );
+
+  const streakDots = useMemo(
+    () =>
+      lastNDates(7).map((date) => {
+        const calories = weekTotals[date]?.calories ?? 0;
+        const met =
+          calories >= goals.calories * 0.9 && calories <= goals.calories * 1.1;
+        return { date, met, logged: calories > 0 };
+      }),
+    [weekTotals, goals.calories]
+  );
+
+  const refreshAfterChange = async (userId: string, activeGoals: Goals) => {
+    await Promise.all([
+      fetchLogsForDate(userId, selectedDate),
+      loadWeekTotals(userId),
+      loadStreak(userId, activeGoals.calories),
+    ]);
+  };
 
   // --- ACTIONS ---
   const handleSaveGoals = async (e: React.FormEvent) => {
     e.preventDefault();
     setGoals(tempGoals);
     setGoalsSource('manual');
+
     if (user) {
-      // Save to nutrition_goals table
-      const { error } = await supabase
-        .from('nutrition_goals')
-        .upsert(
-          {
-            user_id: user.id,
-            calorie_target: tempGoals.calories,
-            protein_target: tempGoals.protein,
-            carbs_target: tempGoals.carbs,
-            fats_target: tempGoals.fats,
-            goal_type: 'custom',
-            source: 'manual',
-          },
-          { onConflict: 'user_id' }
-        );
+      const { error } = await supabase.from('nutrition_goals').upsert(
+        {
+          user_id: user.id,
+          calorie_target: tempGoals.calories,
+          protein_target: tempGoals.protein,
+          carbs_target: tempGoals.carbs,
+          fats_target: tempGoals.fats,
+          goal_type: 'custom',
+          source: 'manual',
+        },
+        { onConflict: 'user_id' }
+      );
       if (error) {
         setError('Error saving goals: ' + error.message);
       } else {
         setError('');
+        setSuccess('Targets updated');
+        setTimeout(() => setSuccess(''), 3000);
+        await loadStreak(user.id, tempGoals.calories);
       }
-      await calculateTargetStreak(user.id, tempGoals);
     }
-    setIsEditingGoals(false);
+    setGoalsModalOpen(false);
   };
 
-  // Accept calculated goals
   const handleAcceptCalculated = async () => {
     if (!user) return;
     const newGoals = calculatedGoals;
@@ -417,36 +429,33 @@ export default function DashboardPage() {
     setGoalsSource('calculated');
     setShowRecommendation(false);
 
-    const { error } = await supabase
-      .from('nutrition_goals')
-      .upsert(
-        {
-          user_id: user.id,
-          calorie_target: newGoals.calories,
-          protein_target: newGoals.protein,
-          carbs_target: newGoals.carbs,
-          fats_target: newGoals.fats,
-          goal_type: 'calculated',
-          source: 'calculated',
-        },
-        { onConflict: 'user_id' }
-      );
+    const { error } = await supabase.from('nutrition_goals').upsert(
+      {
+        user_id: user.id,
+        calorie_target: newGoals.calories,
+        protein_target: newGoals.protein,
+        carbs_target: newGoals.carbs,
+        fats_target: newGoals.fats,
+        goal_type: 'calculated',
+        source: 'calculated',
+      },
+      { onConflict: 'user_id' }
+    );
     if (error) {
       setError('Error saving goals: ' + error.message);
     } else {
-      setError('');
+      setSuccess('Calculated targets saved');
+      setTimeout(() => setSuccess(''), 3000);
     }
-    await calculateTargetStreak(user.id, newGoals);
+    await loadStreak(user.id, newGoals.calories);
   };
 
-  // Decline calculated goals — use them as starting point for manual editing
   const handleDeclineCalculated = () => {
     setTempGoals(calculatedGoals);
     setShowRecommendation(false);
-    setIsEditingGoals(true);
+    setGoalsModalOpen(true);
   };
 
-  // AI Natural Language Estimation
   const handleSmartEstimate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickInput.trim()) return;
@@ -485,7 +494,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Confirm and persist meal
   const handleCommitMeal = async (mealToSave = draftMeal) => {
     if (!user || !mealToSave) return;
     setSubmitting(true);
@@ -512,6 +520,10 @@ export default function DashboardPage() {
       setError('Error saving meal: ' + error.message);
     } else {
       setError('');
+      setSuccess(
+        selectedDate === today ? 'Meal added to today' : `Meal added to ${formatLongDate(selectedDate)}`
+      );
+      setTimeout(() => setSuccess(''), 3000);
       setDraftMeal(null);
       setQuickInput('');
       setManualModalOpen(false);
@@ -528,8 +540,7 @@ export default function DashboardPage() {
         calcium_mg: '',
         potassium_mg: '',
       });
-      await fetchLogsForDate(user.id, selectedDate);
-      await calculateTargetStreak(user.id, goals);
+      await refreshAfterChange(user.id, goals);
     }
     setSubmitting(false);
   };
@@ -554,102 +565,159 @@ export default function DashboardPage() {
 
   const handleDeleteMeal = async (id: string) => {
     if (!user) return;
-    const { error } = await supabase.from('meal_logs').delete().eq('id', id).eq('user_id', user.id);
-    if (!error && user) {
-      await fetchLogsForDate(user.id, selectedDate);
-      await calculateTargetStreak(user.id, goals);
+    const { error } = await supabase
+      .from('meal_logs')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    if (!error) {
+      await refreshAfterChange(user.id, goals);
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
+  const scrollToLog = () => {
+    document.getElementById('log-meal')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  // Deep links from other pages (e.g. /dashboard#goals) arrive before the
+  // dashboard content exists, so scroll once loading has finished.
+  useEffect(() => {
+    if (loading) return;
+    const id = window.location.hash.replace(/^#/, '');
+    if (!id) return;
+    const target = document.getElementById(id);
+    if (!target) return;
+    const frame = requestAnimationFrame(() =>
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [loading]);
 
   if (loading) {
     return <LoadingState label="Loading NutriCal..." />;
   }
 
-  const macroRows = [
+  const statCards = [
+    {
+      label: 'Calories',
+      value: Math.round(totals.calories),
+      target: goals.calories,
+      unit: 'kcal',
+      percent: calPercent,
+      icon: Flame,
+      chip: 'bg-brand-soft text-brand-deep',
+      bar: 'bg-brand',
+    },
     {
       label: 'Protein',
-      value: totals.protein,
+      value: Math.round(totals.protein),
       target: goals.protein,
       unit: 'g',
       percent: proteinPercent,
+      icon: Dumbbell,
+      chip: 'bg-macro-protein-soft text-macro-protein',
       bar: 'bg-macro-protein',
-      sources: 'eggs · dal · yogurt',
     },
     {
       label: 'Carbs',
-      value: totals.carbs,
+      value: Math.round(totals.carbs),
       target: goals.carbs,
       unit: 'g',
       percent: carbsPercent,
+      icon: Bowl,
+      chip: 'bg-macro-carbs-soft text-macro-carbs',
       bar: 'bg-macro-carbs',
-      sources: 'oats · rice · roti',
     },
     {
       label: 'Fats',
-      value: totals.fats,
+      value: Math.round(totals.fats),
       target: goals.fats,
       unit: 'g',
       percent: fatsPercent,
+      icon: Droplet,
+      chip: 'bg-macro-fats-soft text-macro-fats',
       bar: 'bg-macro-fats',
-      sources: 'milk · paneer · nuts',
+    },
+  ];
+
+  const quickActions = [
+    {
+      label: 'Log a meal',
+      detail: 'AI or manual',
+      icon: Plus,
+      chip: 'bg-brand-soft text-brand-deep',
+      onClick: scrollToLog,
+    },
+    {
+      label: 'Ask AI coach',
+      detail: 'Context-aware advice',
+      icon: Chat,
+      chip: 'bg-macro-protein-soft text-macro-protein',
+      onClick: () => router.push('/coach'),
+    },
+    {
+      label: 'View analytics',
+      detail: 'Trends and consistency',
+      icon: ChartBar,
+      chip: 'bg-teal-soft text-teal',
+      onClick: () => router.push('/analytics'),
+    },
+    {
+      label: 'Build my plan',
+      detail: 'Guided assessment',
+      icon: Plan,
+      chip: 'bg-macro-carbs-soft text-macro-carbs',
+      onClick: () => router.push('/assess'),
     },
   ];
 
   return (
-    <div className="min-h-screen bg-paper font-sans text-ink antialiased">
-      <AppHeader
-        active="dashboard"
-        streak={streak}
-        email={user?.email}
-        onSignOut={handleLogout}
-      />
-
-      <main className="mx-auto max-w-5xl px-4 pb-28 pt-8 sm:px-6 sm:pt-10 md:pb-16">
+    <AppShell
+      active="dashboard"
+      userEmail={user?.email}
+      userName={displayName}
+      streak={streak}
+    >
+      <div className="mx-auto w-full max-w-[1400px] space-y-4 sm:space-y-5">
         {error && (
-          <div className="mb-6">
-            <Alert tone="danger" onDismiss={() => setError('')}>
-              {error}
-            </Alert>
-          </div>
+          <Alert tone="danger" onDismiss={() => setError('')}>
+            {error}
+          </Alert>
         )}
+        {success && <Alert tone="success">{success}</Alert>}
 
-        {/* Masthead */}
-        <div
-          className="anim-rise mb-2 flex flex-wrap items-end justify-between gap-4"
-          style={{ '--d': '0ms' } as React.CSSProperties}
-        >
-          <div className="max-w-xl">
-            <p className="eyebrow text-faint">
-              {selectedDate === todayStr ? 'Today' : formattedDateTitle} · {fullDate}
-            </p>
-            <h1 className="display mt-2 text-[38px] leading-[1.03] sm:text-[52px]">
+        {/* ---------- Greeting ---------- */}
+        <div className="anim-rise flex flex-wrap items-end justify-between gap-4 pt-1">
+          <div>
+            <p className="text-[12.5px] font-medium text-muted">{formatLongDate(selectedDate)}</p>
+            <h1 className="display mt-1 text-[28px] sm:text-[34px]">
               {greeting}
-              {displayName ? `, ${displayName}` : ''}.
+              {displayName ? `, ${displayName}` : ''}!{' '}
+              <span aria-hidden="true" className="inline-block">👋</span>
             </h1>
+            <p className="mt-1.5 text-[13.5px] text-muted">
+              Here’s your nutrition overview for {selectedDate === today ? 'today' : formattedDateTitle}.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 pb-1">
-            <div className="flex items-center rounded-pill border border-line bg-surface p-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-control border border-line bg-surface p-1 shadow-card">
               <button
                 onClick={() => shiftDate(-1)}
-                className="rounded-full p-2 text-muted transition hover:bg-surface-soft hover:text-ink"
+                className="rounded-lg p-2 text-muted transition hover:bg-surface-soft hover:text-ink"
                 aria-label="Previous day"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <div className="relative px-3 py-1">
-                <span className="cursor-pointer text-sm font-semibold">
-                  {formattedDateTitle}
+              <div className="relative px-2.5 py-1">
+                <span className="cursor-pointer text-[12.5px] font-semibold">
+                  {selectedDate === today ? 'Today' : formattedDateTitle}
                 </span>
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  max={today}
+                  onChange={(e) => e.target.value && selectDate(e.target.value)}
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   title="Pick a date"
                   aria-label="Pick a date"
@@ -657,607 +725,633 @@ export default function DashboardPage() {
               </div>
               <button
                 onClick={() => shiftDate(1)}
-                className="rounded-full p-2 text-muted transition hover:bg-surface-soft hover:text-ink"
+                disabled={selectedDate >= today}
+                className="rounded-lg p-2 text-muted transition hover:bg-surface-soft hover:text-ink disabled:opacity-30"
                 aria-label="Next day"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
-            {selectedDate !== todayStr && (
-              <button
-                onClick={() => setSelectedDate(todayStr)}
-                className="px-1 text-[13px] font-semibold text-brand-deep hover:underline"
-              >
+
+            {selectedDate !== today && (
+              <Button variant="outline" size="sm" onClick={() => selectDate(today)}>
                 Back to today
-              </button>
+              </Button>
             )}
+
+            <Button size="sm" onClick={scrollToLog} className="hidden sm:inline-flex">
+              <Plus className="h-4 w-4" />
+              Log meal
+            </Button>
           </div>
         </div>
 
-        {/* 1 · How am I doing — open editorial section */}
-        <section
-          className="anim-rise border-b border-line py-8 sm:py-10"
-          style={{ '--d': '60ms' } as React.CSSProperties}
-          aria-label="Today's nutrition"
-        >
-          <p className="rule-label eyebrow text-faint">
-            {selectedDate === todayStr ? "Today's nutrition" : `Daily total · ${selectedDate}`}
-          </p>
-          <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-2">
-            <span className="nums display text-[76px] leading-none sm:text-[104px]">
-              {totals.calories.toLocaleString()}
-            </span>
-            <span className="nums text-lg text-faint">
-              / {goals.calories.toLocaleString()} kcal
-            </span>
-            <span className="rounded-pill bg-surface-soft px-3 py-1 text-xs font-semibold text-muted">
-              {calPercent}% of target
-            </span>
-          </div>
-          <div className="mt-4 h-2 max-w-2xl overflow-hidden rounded-full bg-surface-soft">
-            <div
-              className={`bar-grow h-full rounded-full ${totals.calories > goals.calories ? 'bg-danger' : 'bg-brand'}`}
-              style={{ width: `${calPercent}%`, '--d': '250ms' } as React.CSSProperties}
-              role="progressbar"
-              aria-valuenow={calPercent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label="Calorie progress"
-            />
-          </div>
-          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted">
-            {remainingCalories >= 0 ? (
-              <>
-                <strong className="nums font-semibold text-ink">
-                  {remainingCalories.toLocaleString()} kcal
-                </strong>{' '}
-                remaining today. {dailyNote}
-              </>
-            ) : (
-              <span className="font-medium text-danger">
-                {Math.abs(remainingCalories).toLocaleString()} kcal over target.{' '}
-                {dailyNote}
-              </span>
-            )}
-          </p>
-          <button
-            onClick={() => setIsEditingGoals(!isEditingGoals)}
-            className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand-deep hover:underline"
-          >
-            <Target className="h-3.5 w-3.5" />
-            {isEditingGoals ? 'Hide targets' : 'Adjust targets'}
-          </button>
-        </section>
-
-        {/* 2 · Macro balance — editorial rows, no boxes */}
-        <section
-          className="anim-rise border-b border-line py-8"
-          style={{ '--d': '120ms' } as React.CSSProperties}
-          aria-label="Macro breakdown"
-        >
-          <div className="grid gap-x-10 gap-y-7 sm:grid-cols-3">
-            {macroRows.map((m, i) => (
-              <div key={m.label}>
-                <div className="flex items-baseline justify-between">
-                  <p className="text-sm font-medium text-muted">{m.label}</p>
-                  <p className="nums text-xs text-faint">{m.percent}%</p>
-                </div>
-                <p className="nums display mt-1 text-[44px] leading-none">
-                  {m.value}
-                  <span className="ml-1.5 font-sans text-sm font-medium text-faint">
-                    / {m.target}
-                    {m.unit}
+        {/* ---------- Calculated targets banner ---------- */}
+        {showRecommendation && (
+          <Card className="anim-rise border-ember/30 bg-ember-soft/40 p-4 sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.12em] text-ember-deep">
+                  <Spark className="h-3.5 w-3.5" />
+                  Calculated from your profile
+                </p>
+                <p className="mt-1.5 text-[13.5px] text-ink-soft">
+                  Starting targets:{' '}
+                  <span className="nums font-semibold text-ink">
+                    {calculatedGoals.calories.toLocaleString()} kcal · {calculatedGoals.protein}g P ·{' '}
+                    {calculatedGoals.carbs}g C · {calculatedGoals.fats}g F
                   </span>
                 </p>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-soft">
-                  <div
-                    className={`bar-grow h-full rounded-full ${m.bar}`}
-                    style={{ width: `${m.percent}%`, '--d': `${300 + i * 100}ms` } as React.CSSProperties}
-                    role="progressbar"
-                    aria-valuenow={m.percent}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-label={`${m.label} progress`}
-                  />
-                </div>
-                <p className="mt-2 text-xs text-faint">{m.sources}</p>
               </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 3 · What did you eat — the primary interaction */}
-        <section
-          className="anim-rise py-8 sm:py-10"
-          style={{ '--d': '160ms' } as React.CSSProperties}
-          aria-label="Log a meal"
-        >
-          <div className="max-w-2xl">
-            <p className="eyebrow flex items-center gap-2 text-brand-deep">
-              <Spark className="h-3.5 w-3.5" />
-              Log with AI
-            </p>
-            <h2 className="display mt-2 text-4xl sm:text-5xl">
-              What did you eat?
-            </h2>
-          </div>
-
-          <form onSubmit={handleSmartEstimate} className="mt-6 max-w-2xl">
-            <div className="rounded-card border border-line bg-surface p-2 shadow-card transition focus-within:border-brand">
-              <input
-                type="text"
-                placeholder="Oatmeal with banana and milk…"
-                value={quickInput}
-                onChange={(e) => setQuickInput(e.target.value)}
-                aria-label="Describe your meal"
-                className="w-full bg-transparent px-4 py-3.5 font-display text-[22px] font-medium tracking-tight text-ink placeholder:text-faint focus:outline-none"
-              />
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft px-2 pb-1 pt-3">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 text-[13px] text-faint">
-                  <span>Try:</span>
-                  {[
-                    '2 boiled eggs, toast & an apple',
-                    'Chicken biryani & raita',
-                    'Whey shake with milk',
-                  ].map((example) => (
-                    <button
-                      key={example}
-                      type="button"
-                      onClick={() => setQuickInput(example)}
-                      className="font-medium text-muted underline decoration-line underline-offset-[3px] transition hover:text-ink"
-                    >
-                      {example}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setManualModalOpen(true)}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Manual
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={aiLoading || !quickInput.trim()}
-                    loading={aiLoading}
-                  >
-                    {aiLoading ? 'Estimating' : 'Estimate nutrition'}
-                    {!aiLoading && <ArrowRight className="h-4 w-4" />}
-                  </Button>
-                </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={handleDeclineCalculated}>
+                  Edit instead
+                </Button>
+                <Button size="sm" onClick={handleAcceptCalculated}>
+                  Use these goals
+                </Button>
               </div>
-            </div>
-          </form>
-
-          {draftMeal && (
-            <div className="anim-pop mt-5 max-w-2xl rounded-card border border-brand/25 bg-brand-mist p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="eyebrow text-brand-deep">Estimated · review & add</p>
-                  <p className="display mt-1.5 text-[28px]">{draftMeal.meal_name}</p>
-                  <p className="nums mt-2 flex flex-wrap items-center gap-x-2.5 text-sm text-ink-soft">
-                    <strong className="text-lg font-semibold text-ink">
-                      {draftMeal.calories} kcal
-                    </strong>
-                    <span className="text-faint">·</span>
-                    <span>Protein {draftMeal.protein}g</span>
-                    <span className="text-faint">·</span>
-                    <span>Carbs {draftMeal.carbs}g</span>
-                    <span className="text-faint">·</span>
-                    <span>Fats {draftMeal.fats}g</span>
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDraftMeal(null)}
-                  >
-                    Discard
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={submitting}
-                    loading={submitting}
-                    onClick={() => handleCommitMeal(draftMeal)}
-                  >
-                    Add to today
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* 4 · Personalized starting targets */}
-        {showRecommendation && (
-          <Card
-            className="anim-rise mb-8 border-ember/25 bg-ember-soft/30 p-6 sm:p-7"
-            style={{ '--d': '140ms' } as React.CSSProperties}
-          >
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="display text-2xl">
-                  Your personalized starting targets
-                </h2>
-                <p className="mt-1 text-[13px] text-muted">
-                  Calculated from your profile — review before applying.
-                </p>
-              </div>
-              <Badge tone="ember">Calculated</Badge>
-            </div>
-
-            <dl className="mb-5 grid grid-cols-2 gap-x-8 gap-y-3 border-y border-line py-5 sm:grid-cols-4">
-              {[
-                { label: 'Calories', value: calculatedGoals.calories.toLocaleString(), unit: 'kcal' },
-                { label: 'Protein', value: calculatedGoals.protein, unit: 'g' },
-                { label: 'Carbs', value: calculatedGoals.carbs, unit: 'g' },
-                { label: 'Fats', value: calculatedGoals.fats, unit: 'g' },
-              ].map((g) => (
-                <div key={g.label}>
-                  <dt className="eyebrow text-faint">{g.label}</dt>
-                  <dd className="nums display mt-1 text-[28px]">
-                    {g.value}
-                    <span className="ml-1 font-sans text-xs font-medium text-faint">
-                      {g.unit}
-                    </span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" onClick={handleAcceptCalculated}>
-                Use these goals
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDeclineCalculated}>
-                Edit instead
-              </Button>
             </div>
           </Card>
         )}
 
-        {/* 5 · Targets editor */}
-        {isEditingGoals && (
-          <Card className="anim-rise mb-8 p-6 sm:p-7">
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="display text-2xl">Nutrition targets</h2>
-                <p className="mt-1 text-[13px] text-muted">
-                  Fine-tune your daily calorie and macro baseline.
+        {/* ---------- Stat cards ---------- */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+          {statCards.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <div
+                key={stat.label}
+                className="anim-rise hover-lift rounded-card border border-line bg-surface p-4 shadow-card"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="flex items-start justify-between">
+                  <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${stat.chip}`}>
+                    <Icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="nums rounded-pill bg-surface-soft px-2 py-1 text-[10px] font-semibold text-muted">
+                    {stat.percent}%
+                  </span>
+                </div>
+                <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-faint">
+                  {stat.label}
                 </p>
+                <p className="nums mt-1 text-[25px] font-semibold leading-none tracking-tight">
+                  {stat.value.toLocaleString()}
+                  <span className="ml-1 text-[11.5px] font-medium text-faint">
+                    / {stat.target.toLocaleString()} {stat.unit}
+                  </span>
+                </p>
+                <Progress value={stat.percent} colorClass={stat.bar} className="mt-3" />
               </div>
+            );
+          })}
+        </div>
+
+        {/* ---------- Goal · trend · quick actions ---------- */}
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.65fr)_minmax(0,1fr)]">
+          <Card
+            id="goals"
+            className="anim-rise flex scroll-mt-24 flex-col items-center p-5 text-center"
+            style={{ animationDelay: '80ms' }}
+          >
+            <div className="mb-3 flex w-full items-center justify-between">
+              <p className="text-[13px] font-semibold">Daily goal</p>
               <Badge tone="brand">{GOAL_SOURCE_LABEL[goalsSource]}</Badge>
             </div>
 
-            <form
-              onSubmit={handleSaveGoals}
-              className="grid grid-cols-2 gap-4 sm:grid-cols-4"
+            <ProgressRing value={calPercent} size={158} stroke={13}>
+              <span className="nums display text-[40px] leading-none">{calPercent}%</span>
+              <span className="mt-1 text-[10.5px] text-muted">Goal achieved</span>
+            </ProgressRing>
+
+            <div
+              className={`mt-3 inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[11.5px] font-semibold ${
+                remainingCalories >= 0
+                  ? 'bg-brand-mist text-brand'
+                  : 'bg-danger-soft text-danger'
+              }`}
             >
+              <Flame className="h-3.5 w-3.5" />
+              {remainingCalories >= 0
+                ? `${remainingCalories.toLocaleString()} kcal left`
+                : `${Math.abs(remainingCalories).toLocaleString()} kcal over`}
+            </div>
+
+            <button
+              onClick={() => {
+                setTempGoals(goals);
+                setGoalsModalOpen(true);
+              }}
+              className="mt-3 inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-brand transition hover:text-brand-deep"
+            >
+              <Target className="h-3.5 w-3.5" />
+              Adjust targets
+            </button>
+          </Card>
+
+          <Card className="anim-rise p-4 sm:p-5" style={{ animationDelay: '120ms' }}>
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-[14px] font-semibold">Nutrition trend</p>
+                <p className="mt-0.5 text-[11.5px] text-muted">Last 7 days</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <ChartLegend series={trendSeries} />
+              </div>
+            </div>
+            <LineChart
+              labels={trendLabels}
+              series={trendSeries}
+              goal={goals.calories}
+              goalLabel={`${goals.calories.toLocaleString()} kcal goal`}
+              height={214}
+            />
+          </Card>
+
+          <Card className="anim-rise p-4" style={{ animationDelay: '160ms' }}>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[14px] font-semibold">Quick actions</p>
+              <ArrowUpRight className="h-4 w-4 text-faint" />
+            </div>
+            <div className="space-y-2">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.label}
+                    onClick={action.onClick}
+                    className="group flex w-full items-center gap-3 rounded-panel border border-line bg-surface px-3 py-2.5 text-left transition hover:border-brand/30 hover:bg-brand-mist/60"
+                  >
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${action.chip}`}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[12.5px] font-semibold text-ink">{action.label}</span>
+                      <span className="block text-[10.5px] text-muted">{action.detail}</span>
+                    </span>
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-faint transition group-hover:translate-x-0.5" />
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        {/* ---------- Log meal · focus/targets ---------- */}
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <Card id="log-meal" className="anim-rise scroll-mt-24 p-4 sm:p-5" style={{ animationDelay: '80ms' }}>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="flex items-center gap-1.5 text-[14px] font-semibold">
+                  <Spark className="h-4 w-4 text-brand" />
+                  Log your meal
+                </p>
+                <p className="mt-0.5 text-[11.5px] text-muted">
+                  Describe it naturally — AI estimates the numbers for {selectedDate === today ? 'today' : formattedDateTitle}.
+                </p>
+              </div>
+              <button
+                onClick={() => setManualModalOpen(true)}
+                className="inline-flex items-center gap-1 rounded-control border border-line bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-ink-soft transition hover:border-faint"
+              >
+                <Plus className="h-3 w-3" />
+                Manual entry
+              </button>
+            </div>
+
+            <form onSubmit={handleSmartEstimate} className="mt-3">
+              <div className="rounded-control border border-line bg-paper p-1.5 transition focus-within:border-brand/50 focus-within:ring-4 focus-within:ring-brand/10">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    placeholder="Oatmeal with banana and milk…"
+                    value={quickInput}
+                    onChange={(e) => setQuickInput(e.target.value)}
+                    aria-label="Describe your meal"
+                    className="min-w-0 flex-1 bg-transparent px-2.5 py-2.5 text-[14px] text-ink placeholder:text-faint focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={aiLoading || !quickInput.trim()}
+                    className="pressable inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-[12.5px] font-semibold text-white transition hover:bg-brand-deep disabled:cursor-not-allowed disabled:bg-brand/40"
+                  >
+                    {aiLoading ? 'Estimating…' : 'Estimate'}
+                    {!aiLoading && <ArrowRight className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10.5px] font-medium text-faint">Try:</span>
+                {[
+                  '2 boiled eggs, toast & an apple',
+                  'Chicken biryani & raita',
+                  'Whey shake with milk',
+                ].map((example) => (
+                  <button
+                    key={example}
+                    type="button"
+                    onClick={() => setQuickInput(example)}
+                    className="rounded-pill border border-line bg-surface px-2.5 py-1 text-[10.5px] font-medium text-muted transition hover:border-brand/30 hover:text-ink"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
+            </form>
+
+            {draftMeal && (
+              <div className="anim-pop mt-4 rounded-panel border border-brand/25 bg-brand-mist p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-brand">
+                      <Check className="h-3 w-3" />
+                      Review before adding
+                    </p>
+                    <p className="mt-1 truncate text-[16px] font-semibold">{draftMeal.meal_name}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {[
+                        { label: 'kcal', value: draftMeal.calories, color: 'text-brand' },
+                        { label: 'P', value: `${draftMeal.protein}g`, color: 'text-macro-protein' },
+                        { label: 'C', value: `${draftMeal.carbs}g`, color: 'text-macro-carbs' },
+                        { label: 'F', value: `${draftMeal.fats}g`, color: 'text-macro-fats' },
+                      ].map((macro) => (
+                        <span
+                          key={macro.label}
+                          className="nums rounded-pill bg-surface px-2.5 py-1 text-[11px] font-semibold text-ink-soft shadow-card"
+                        >
+                          <span className={macro.color}>{macro.value}</span>{' '}
+                          <span className="text-faint">{macro.label}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setDraftMeal(null)}>
+                      Discard
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={submitting}
+                      loading={submitting}
+                      onClick={() => handleCommitMeal(draftMeal)}
+                    >
+                      Add meal
+                    </Button>
+                  </div>
+                </div>
+                <p className="mt-2 text-[10.5px] text-muted">
+                  Includes estimated vitamins and minerals. You can delete it anytime.
+                </p>
+              </div>
+            )}
+          </Card>
+
+          <div className="grid gap-3 sm:gap-4">
+            <Card className="anim-rise p-4" style={{ animationDelay: '120ms' }}>
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-semibold">Today’s focus</p>
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-mist text-brand">
+                  <Spark className="h-3.5 w-3.5" />
+                </span>
+              </div>
+              <p className="mt-2 text-[12.5px] leading-relaxed text-ink-soft">{dailyNote}</p>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded-panel bg-paper px-3 py-2.5">
+                  <p className="text-[10px] font-medium text-faint">Protein left</p>
+                  <p className="nums mt-0.5 text-[16px] font-semibold">
+                    {Math.max(proteinToGo, 0)}
+                    <span className="ml-1 text-[10.5px] font-medium text-faint">g</span>
+                  </p>
+                </div>
+                <div className="rounded-panel bg-paper px-3 py-2.5">
+                  <p className="text-[10px] font-medium text-faint">Calories left</p>
+                  <p className="nums mt-0.5 text-[16px] font-semibold">
+                    {Math.max(remainingCalories, 0).toLocaleString()}
+                    <span className="ml-1 text-[10.5px] font-medium text-faint">kcal</span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => router.push('/coach')}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-control border border-line bg-surface px-3 py-2 text-[11.5px] font-semibold text-ink-soft transition hover:border-brand/30 hover:text-brand-deep"
+              >
+                <Chat className="h-3.5 w-3.5" />
+                Ask the coach
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </Card>
+
+            <Card className="anim-rise p-4" style={{ animationDelay: '160ms' }}>
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-semibold">Your targets</p>
+                <button
+                  onClick={() => {
+                    setTempGoals(goals);
+                    setGoalsModalOpen(true);
+                  }}
+                  className="text-[10.5px] font-semibold text-brand transition hover:text-brand-deep"
+                >
+                  Edit
+                </button>
+              </div>
+
+              <div className="mt-2.5 space-y-2">
+                {[
+                  { label: 'Calories', value: goals.calories.toLocaleString(), unit: 'kcal', dot: 'bg-brand' },
+                  { label: 'Protein', value: goals.protein, unit: 'g', dot: 'bg-macro-protein' },
+                  { label: 'Carbs', value: goals.carbs, unit: 'g', dot: 'bg-macro-carbs' },
+                  { label: 'Fats', value: goals.fats, unit: 'g', dot: 'bg-macro-fats' },
+                ].map((target) => (
+                  <div key={target.label} className="flex items-center justify-between text-[12px]">
+                    <span className="flex items-center gap-2 text-muted">
+                      <span className={`h-2 w-2 rounded-full ${target.dot}`} />
+                      {target.label}
+                    </span>
+                    <span className="nums font-semibold text-ink">
+                      {target.value}
+                      <span className="ml-1 text-[10px] font-medium text-faint">{target.unit}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 border-t border-line-soft pt-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted">
+                    <Flame className="h-3.5 w-3.5 text-ember" />
+                    {streak > 0 ? `${streak}-day streak` : 'No streak yet'}
+                  </span>
+                  <div className="flex gap-1">
+                    {streakDots.map((dot) => (
+                      <span
+                        key={dot.date}
+                        title={`${formatLongDate(dot.date)}${dot.met ? ' — target met' : ''}`}
+                        className={`h-1.5 w-3 rounded-full ${
+                          dot.met
+                            ? 'bg-leaf'
+                            : dot.logged
+                              ? 'bg-brand-soft'
+                              : 'bg-surface-soft'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* ---------- Recent meals · micronutrients ---------- */}
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <Card className="anim-rise p-4 sm:p-5" style={{ animationDelay: '80ms' }}>
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-[14px] font-semibold">
+                  {selectedDate === today ? 'Today’s meals' : 'Meals'}
+                </p>
+                <p className="mt-0.5 text-[11.5px] text-muted">
+                  {logs.length === 0
+                    ? 'Nothing logged yet'
+                    : `${logs.length} meal${logs.length === 1 ? '' : 's'} · most recent first`}
+                </p>
+              </div>
+              <button
+                onClick={() => router.push('/history')}
+                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand transition hover:text-brand-deep"
+              >
+                View history
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+
+            {logs.length === 0 ? (
+              <EmptyState
+                icon={<Bowl className="h-5 w-5" />}
+                title="Your day is a blank plate"
+                hint="Describe a meal above and NutriCal will do the maths."
+                action={
+                  <Button variant="outline" size="sm" onClick={() => setManualModalOpen(true)}>
+                    <Plus className="h-3.5 w-3.5" />
+                    Add manual meal
+                  </Button>
+                }
+              />
+            ) : (
+              <ul className="divide-y divide-line-soft">
+                {logs.map((log, index) => {
+                  const timeStr = new Date(log.created_at).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                  });
+                  return (
+                    <li
+                      key={log.id}
+                      className="anim-row-in group flex items-center gap-3 py-3"
+                      style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-mist text-brand">
+                        <Bowl className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <h3 className="truncate text-[13px] font-semibold">{log.meal_name}</h3>
+                          <span className="nums shrink-0 text-[12px] font-semibold">
+                            {Number(log.calories).toLocaleString()}
+                            <span className="ml-0.5 text-[9.5px] font-medium text-faint">kcal</span>
+                          </span>
+                        </div>
+                        <p className="nums mt-0.5 truncate text-[10.5px] text-muted">
+                          {timeStr} · P {log.protein}g · C {log.carbs}g · F {log.fats}g
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteMeal(log.id)}
+                        className="shrink-0 rounded-full p-2 text-faint opacity-100 transition hover:bg-danger-soft hover:text-danger sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                        title="Remove meal"
+                        aria-label={`Remove ${log.meal_name}`}
+                      >
+                        <Trash className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+
+          <Card className="anim-rise p-4 sm:p-5" style={{ animationDelay: '120ms' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[14px] font-semibold">Micronutrients</p>
+                <p className="mt-0.5 text-[11.5px] text-muted">Estimated daily intake</p>
+              </div>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-leaf-soft text-leaf">
+                <Droplet className="h-3.5 w-3.5" />
+              </span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+              {MICRO_TARGETS.map((micro) => {
+                const value = Math.round(microTotals[micro.key]);
+                const pct = clampPercent(percentOf(microTotals[micro.key], micro.target));
+                return (
+                  <div key={micro.key}>
+                    <div className="flex items-baseline justify-between">
+                      <p className="truncate text-[10.5px] font-medium text-muted">{micro.label}</p>
+                      <p className="nums ml-1 shrink-0 text-[9.5px] text-faint">{pct}%</p>
+                    </div>
+                    <p className="nums mt-0.5 text-[14px] font-semibold leading-none">
+                      {value.toLocaleString()}
+                      <span className="ml-1 text-[9px] font-medium text-faint">
+                        / {micro.target.toLocaleString()}
+                        {micro.unit}
+                      </span>
+                    </p>
+                    <Progress
+                      value={pct}
+                      colorClass="bg-leaf"
+                      className="mt-1.5 !h-1"
+                      label={`${micro.label} progress`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-3 border-t border-line-soft pt-2.5 text-[10px] leading-relaxed text-faint">
+              General adult reference values — estimates, not a lab report.
+            </p>
+          </Card>
+        </div>
+      </div>
+
+      {/* ---------- Goals modal ---------- */}
+      {goalsModalOpen && (
+        <Modal title="Adjust nutrition targets" onClose={() => setGoalsModalOpen(false)}>
+          <form onSubmit={handleSaveGoals} className="space-y-4">
+            <div className="flex items-center justify-between rounded-panel bg-surface-soft px-3.5 py-2.5">
+              <span className="text-[12px] text-muted">Current source</span>
+              <Badge tone="brand">{GOAL_SOURCE_LABEL[goalsSource]}</Badge>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'Calories (kcal)', key: 'calories' as const },
                 { label: 'Protein (g)', key: 'protein' as const },
                 { label: 'Carbs (g)', key: 'carbs' as const },
                 { label: 'Fats (g)', key: 'fats' as const },
-              ].map((f) => (
-                <Field key={f.key} label={f.label}>
+              ].map((field) => (
+                <Field key={field.key} label={field.label}>
                   <input
                     type="number"
                     min={0}
-                    value={tempGoals[f.key]}
+                    value={tempGoals[field.key]}
                     onChange={(e) =>
-                      setTempGoals({ ...tempGoals, [f.key]: Number(e.target.value) })
+                      setTempGoals({ ...tempGoals, [field.key]: Number(e.target.value) })
                     }
                     className={inputClass}
                     required
                   />
                 </Field>
               ))}
-              <div className="col-span-2 flex justify-end gap-2 border-t border-line-soft pt-4 sm:col-span-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsEditingGoals(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="dark" size="sm">
-                  Save targets
-                </Button>
-              </div>
-            </form>
-          </Card>
-        )}
-
-        {/* 6 · Meals timeline — open rows */}
-        <section
-          className="anim-rise border-t border-line pt-8"
-          style={{ '--d': '200ms' } as React.CSSProperties}
-          aria-label="Logged meals"
-        >
-          <div className="mb-2 flex items-end justify-between gap-3">
-            <div>
-              <p className="eyebrow text-faint">
-                {selectedDate === todayStr ? "Today's meals" : 'Meals'}
-              </p>
-              <h2 className="display mt-1 text-3xl">
-                {logs.length === 0
-                  ? 'Nothing logged yet'
-                  : `${logs.length} meal${logs.length === 1 ? '' : 's'} logged`}
-              </h2>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/coach')}
-            >
-              Ask coach
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
 
-          {logs.length === 0 ? (
-            <EmptyState
-              icon={<Bowl className="h-5 w-5" />}
-              title="Your day is a blank plate"
-              hint="Describe a meal above and NutriCal will do the maths."
-              action={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setManualModalOpen(true)}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add manual meal
-                </Button>
-              }
-            />
-          ) : (
-            <ul className="divide-y divide-line">
-              {logs.map((log, i) => {
-                const timeStr = new Date(log.created_at).toLocaleTimeString(
-                  'en-US',
-                  { hour: '2-digit', minute: '2-digit', hour12: true }
-                );
-                return (
-                  <li
-                    key={log.id}
-                    className="anim-row-in group flex items-center justify-between gap-3 py-4"
-                    style={{ '--d': `${Math.min(i, 8) * 40}ms` } as React.CSSProperties}
-                  >
-                    <div className="flex min-w-0 items-baseline gap-4">
-                      <span className="nums w-[64px] shrink-0 text-[12px] font-medium text-faint">
-                        {timeStr}
-                      </span>
-                      <div className="min-w-0">
-                        <h3 className="truncate font-display text-[19px] font-medium tracking-tight">
-                          {log.meal_name}
-                        </h3>
-                        <p className="nums mt-0.5 flex flex-wrap items-center gap-x-2 text-[13px] text-muted">
-                          <strong className="font-semibold text-ink">
-                            {log.calories} kcal
-                          </strong>
-                          <span className="text-line">·</span>
-                          <span>P {log.protein}g</span>
-                          <span className="text-line">·</span>
-                          <span>C {log.carbs}g</span>
-                          <span className="text-line">·</span>
-                          <span>F {log.fats}g</span>
-                        </p>
-                      </div>
-                    </div>
+            <div className="flex justify-end gap-2 border-t border-line-soft pt-4">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setGoalsModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm">
+                Save targets
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
-                    <button
-                      onClick={() => handleDeleteMeal(log.id)}
-                      className="shrink-0 rounded-full p-2 text-faint transition hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
-                      title="Remove meal"
-                      aria-label={`Remove ${log.meal_name}`}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <p className="mt-2 text-xs text-faint">
-            {logs.length > 0 ? 'Sorted by most recent.' : ''}
-          </p>
-        </section>
+      {/* ---------- Manual meal modal ---------- */}
+      {manualModalOpen && (
+        <Modal title="Manual meal entry" onClose={() => setManualModalOpen(false)} wide>
+          <form onSubmit={handleManualSubmit} className="space-y-4">
+            <Field label="Food / description">
+              <input
+                type="text"
+                required
+                autoFocus
+                placeholder="e.g. Grilled chicken salad"
+                value={manualForm.mealName}
+                onChange={(e) => setManualForm({ ...manualForm, mealName: e.target.value })}
+                className={inputClass}
+              />
+            </Field>
 
-        {/* 7 · Vitamins & minerals — daily estimated intake */}
-        <section
-          className="anim-rise border-t border-line pt-8"
-          style={{ '--d': '220ms' } as React.CSSProperties}
-          aria-label="Vitamins and minerals"
-        >
-          <p className="eyebrow text-faint">Micronutrients</p>
-          <h2 className="display mt-1 text-3xl">
-            Small nutrients, big picture.
-          </h2>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-            Estimated from your logged meals against general adult daily
-            reference values — useful direction, not a lab report.
-          </p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: 'Calories', key: 'calories' as const, ph: '450' },
+                { label: 'Protein (g)', key: 'protein' as const, ph: '35' },
+                { label: 'Carbs (g)', key: 'carbs' as const, ph: '20' },
+                { label: 'Fats (g)', key: 'fats' as const, ph: '12' },
+              ].map((field) => (
+                <Field key={field.key} label={field.label}>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder={field.ph}
+                    value={manualForm[field.key]}
+                    onChange={(e) =>
+                      setManualForm({ ...manualForm, [field.key]: e.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </Field>
+              ))}
+            </div>
 
-          <div className="mt-6 grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-            {MICRO_TARGETS.map((m, i) => {
-              const value = Math.round(microTotals[m.key]);
-              const pct = Math.min(
-                Math.round((microTotals[m.key] / m.target) * 100),
-                100
-              );
-              return (
-                <div key={m.key}>
-                  <div className="flex items-baseline justify-between">
-                    <p className="text-sm font-medium text-muted">{m.label}</p>
-                    <p className="nums text-xs text-faint">{pct}%</p>
-                  </div>
-                  <p className="nums display mt-1 text-[34px] leading-none">
-                    {value.toLocaleString()}
-                    <span className="ml-1.5 font-sans text-[13px] font-medium text-faint">
-                      / {m.target.toLocaleString()}
-                      {m.unit}
-                    </span>
-                  </p>
-                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-soft">
-                    <div
-                      className="bar-grow h-full rounded-full bg-leaf"
-                      style={{ width: `${pct}%`, '--d': `${300 + i * 80}ms` } as React.CSSProperties}
-                      role="progressbar"
-                      aria-valuenow={pct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label={`${m.label} progress`}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* 7 · Manual entry */}
-        {manualModalOpen && (
-          <Modal title="Manual meal entry" onClose={() => setManualModalOpen(false)}>
-            <form onSubmit={handleManualSubmit} className="space-y-4">
-              <Field label="Food / description">
-                <input
-                  type="text"
-                  required
-                  autoFocus
-                  placeholder="e.g. Grilled chicken salad"
-                  value={manualForm.mealName}
-                  onChange={(e) =>
-                    setManualForm({ ...manualForm, mealName: e.target.value })
-                  }
-                  className={inputClass}
-                />
-              </Field>
-
-              <Field label="Calories (kcal)">
-                <input
-                  type="number"
-                  min={0}
-                  placeholder="450"
-                  value={manualForm.calories}
-                  onChange={(e) =>
-                    setManualForm({ ...manualForm, calories: e.target.value })
-                  }
-                  className={inputClass}
-                />
-              </Field>
-
-              <div className="grid grid-cols-3 gap-3">
+            <details className="group rounded-panel border border-line-soft">
+              <summary className="cursor-pointer list-none px-4 py-3 text-[12.5px] font-semibold text-muted transition hover:text-ink">
+                Vitamins & minerals <span className="font-normal text-faint">(optional)</span>
+              </summary>
+              <div className="grid grid-cols-2 gap-3 px-4 pb-4 sm:grid-cols-3">
                 {[
-                  { label: 'Protein (g)', key: 'protein' as const, ph: '35' },
-                  { label: 'Carbs (g)', key: 'carbs' as const, ph: '20' },
-                  { label: 'Fats (g)', key: 'fats' as const, ph: '12' },
-                ].map((f) => (
-                  <Field key={f.key} label={f.label}>
+                  { label: 'Vit A (mcg)', key: 'vitamin_a_mcg' as const },
+                  { label: 'Vit C (mg)', key: 'vitamin_c_mg' as const },
+                  { label: 'Vit D (mcg)', key: 'vitamin_d_mcg' as const },
+                  { label: 'Iron (mg)', key: 'iron_mg' as const },
+                  { label: 'Calcium (mg)', key: 'calcium_mg' as const },
+                  { label: 'Potassium (mg)', key: 'potassium_mg' as const },
+                ].map((field) => (
+                  <Field key={field.key} label={field.label}>
                     <input
                       type="number"
                       min={0}
-                      placeholder={f.ph}
-                      value={manualForm[f.key]}
+                      placeholder="0"
+                      value={manualForm[field.key]}
                       onChange={(e) =>
-                        setManualForm({ ...manualForm, [f.key]: e.target.value })
+                        setManualForm({ ...manualForm, [field.key]: e.target.value })
                       }
                       className={inputClass}
                     />
                   </Field>
                 ))}
               </div>
+            </details>
 
-              <details className="group rounded-panel border border-line-soft">
-                <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-semibold text-muted transition hover:text-ink">
-                  Vitamins & minerals{' '}
-                  <span className="font-normal text-faint">(optional estimates)</span>
-                </summary>
-                <div className="grid grid-cols-3 gap-3 px-4 pb-4">
-                  {(
-                    [
-                      { label: 'Vit A (mcg)', key: 'vitamin_a_mcg' as const },
-                      { label: 'Vit C (mg)', key: 'vitamin_c_mg' as const },
-                      { label: 'Vit D (mcg)', key: 'vitamin_d_mcg' as const },
-                      { label: 'Iron (mg)', key: 'iron_mg' as const },
-                      { label: 'Calcium (mg)', key: 'calcium_mg' as const },
-                      { label: 'Potassium (mg)', key: 'potassium_mg' as const },
-                    ]
-                  ).map((f) => (
-                    <Field key={f.key} label={f.label}>
-                      <input
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        value={manualForm[f.key]}
-                        onChange={(e) =>
-                          setManualForm({ ...manualForm, [f.key]: e.target.value })
-                        }
-                        className={inputClass}
-                      />
-                    </Field>
-                  ))}
-                </div>
-              </details>
-
-              <div className="flex justify-end gap-2 border-t border-line-soft pt-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setManualModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="dark" size="sm" loading={submitting}>
-                  Add meal
-                </Button>
-              </div>
-            </form>
-          </Modal>
-        )}
-
-        {/* 8 · Coach strip */}
-        <section
-          className="anim-rise mt-10 flex flex-col items-start justify-between gap-4 rounded-card bg-brand-ink px-6 py-7 text-white sm:flex-row sm:items-center sm:px-8"
-          style={{ '--d': '220ms' } as React.CSSProperties}
-        >
-          <div>
-            <p className="eyebrow text-white/50">Not sure what&apos;s next?</p>
-            <p className="display mt-1 text-2xl sm:text-[28px]">
-              Ask your coach what to eat tonight.
-            </p>
-          </div>
-          <Button
-            variant="light"
-            onClick={() => router.push('/coach')}
-            className="shrink-0"
-          >
-            Open coach
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </section>
-
-        {/* Footer note */}
-        <footer className="mt-10 border-t border-line pt-5 pb-2 text-[12px] text-faint">
-          <div className="flex items-center gap-2">
-            <Chat className="h-3.5 w-3.5" />
-            <span>
-              NutriCal provides general nutrition guidance and estimates and is
-              not a substitute for professional medical advice.
-            </span>
-          </div>
-        </footer>
-      </main>
-
-      <MobileNav active="dashboard" />
-    </div>
+            <div className="flex justify-end gap-2 border-t border-line-soft pt-4">
+              <Button type="button" variant="ghost" onClick={() => setManualModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={submitting}>
+                Add meal
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </AppShell>
   );
 }

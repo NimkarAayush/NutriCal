@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { AppHeader, MobileNav } from '@/components/nav';
+import { AppShell } from '@/components/nav';
 import { Card, Badge, Alert, LoadingState } from '@/components/ui';
 import { Plan, LogoMark, ArrowRight, Trash } from '@/components/icons';
 
@@ -106,7 +106,8 @@ export default function AssessPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [user, setUser] = useState<{ id: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [profileName, setProfileName] = useState('');
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -132,6 +133,13 @@ export default function AssessPage() {
         return;
       }
       setUser(user);
+
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', user.id)
+        .single();
+      if (profileRow?.full_name) setProfileName(profileRow.full_name);
 
       const saved = loadStoredChat(`${STORAGE_PREFIX}:${user.id}`);
       if (saved) {
@@ -296,11 +304,6 @@ export default function AssessPage() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
-
   if (loading) {
     return <LoadingState label="Loading assessment..." />;
   }
@@ -308,41 +311,46 @@ export default function AssessPage() {
   const isComplete = result?.type === 'summary';
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-paper font-sans text-ink antialiased">
-      <AppHeader active="assess" onSignOut={handleLogout} />
-
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-3 pb-[calc(74px+env(safe-area-inset-bottom))] pt-4 sm:px-6 md:pb-6">
-        {/* Chat header */}
-        <div className="anim-rise flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-ink text-white shadow-lift">
-              <Plan className="h-5 w-5" />
-              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-paper bg-leaf" />
-            </span>
-            <div className="min-w-0">
-              <p className="eyebrow text-faint">Guided setup</p>
-              <h1 className="display text-[22px] leading-tight sm:text-[26px]">Build my nutrition plan</h1>
+    <AppShell
+      active="assess"
+      fullHeight
+      userEmail={user?.email}
+      userName={profileName || undefined}
+    >
+      <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col">
+        {/* Chat panel */}
+        <div className="anim-rise flex min-h-0 flex-1 flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card">
+          {/* Panel header */}
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line-soft px-4 py-3 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-card">
+                <Plan className="h-[18px] w-[18px]" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-leaf" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-[14px] font-semibold">Build your plan</p>
+                  <Badge tone="brand">Guided</Badge>
+                </div>
+                <p className="truncate text-[11px] text-muted">
+                  A few questions · about 2 minutes
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleClearChat}
+              disabled={messages.length <= 1 && !isTyping}
+              title="Clear this conversation"
+              aria-label="Clear chat"
+              className="pressable flex shrink-0 items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-2 text-[11.5px] font-semibold text-muted shadow-card transition hover:border-ember/40 hover:text-ember disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Trash className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear chat</span>
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={handleClearChat}
-            disabled={messages.length <= 1 && !isTyping}
-            title="Clear this conversation"
-            aria-label="Clear chat"
-            className="pressable flex shrink-0 items-center gap-1.5 rounded-pill border border-line bg-surface px-3 py-2 text-[12px] font-semibold text-muted shadow-card transition hover:border-ember/40 hover:text-ember disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Trash className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Clear chat</span>
-          </button>
-        </div>
-
-        {/* Chat panel */}
-        <div
-          className="anim-rise mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-line bg-surface-soft/40 shadow-card"
-          style={{ '--d': '60ms' } as React.CSSProperties}
-        >
           {/* Messages */}
           <div
             ref={scrollRef}
@@ -358,7 +366,7 @@ export default function AssessPage() {
                 }`}
               >
                 {msg.role === 'assistant' && (
-                  <span className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-ink-soft ring-1 ring-ink/10">
+                  <span className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/10">
                     <LogoMark className="h-4 w-4" />
                   </span>
                 )}
@@ -377,7 +385,7 @@ export default function AssessPage() {
 
             {isTyping && (
               <div className="flex items-end gap-2.5">
-                <span className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-ink-soft ring-1 ring-ink/10">
+                <span className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/10">
                   <LogoMark className="h-4 w-4" />
                 </span>
                 <div className="rounded-2xl rounded-bl-md border border-line-soft bg-surface px-4 py-3.5 shadow-card">
@@ -410,13 +418,13 @@ export default function AssessPage() {
 
                   {result.collected && (
                     <div className="mt-4 rounded-panel bg-brand-mist px-4 py-3.5">
-                      <p className="eyebrow mb-2 text-brand-deep">
+                      <p className="eyebrow mb-2 text-brand">
                         What you told us
                       </p>
-                      <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px] text-brand-ink">
+                      <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px] text-ink-soft">
                         {result.collected.primary_goal && (
                           <li>
-                            <span className="text-brand-deep/70">Goal — </span>
+                            <span className="text-muted">Goal — </span>
                             <span className="font-semibold">
                               {result.collected.primary_goal}
                             </span>
@@ -424,7 +432,7 @@ export default function AssessPage() {
                         )}
                         {result.collected.activity_level && (
                           <li>
-                            <span className="text-brand-deep/70">Activity — </span>
+                            <span className="text-muted">Activity — </span>
                             <span className="font-semibold">
                               {result.collected.activity_level}
                             </span>
@@ -432,7 +440,7 @@ export default function AssessPage() {
                         )}
                         {result.collected.diet_type && (
                           <li>
-                            <span className="text-brand-deep/70">Diet — </span>
+                            <span className="text-muted">Diet — </span>
                             <span className="font-semibold">
                               {result.collected.diet_type}
                             </span>
@@ -440,7 +448,7 @@ export default function AssessPage() {
                         )}
                         {result.collected.meals_per_day != null && (
                           <li>
-                            <span className="text-brand-deep/70">Meals — </span>
+                            <span className="text-muted">Meals — </span>
                             <span className="font-semibold">
                               {result.collected.meals_per_day}/day
                             </span>
@@ -533,9 +541,7 @@ export default function AssessPage() {
             </p>
           </div>
         </div>
-      </main>
-
-      <MobileNav active="assess" />
-    </div>
+      </div>
+    </AppShell>
   );
 }

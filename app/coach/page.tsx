@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { AppHeader, MobileNav } from '@/components/nav';
+import { todayKey } from '@/lib/stats';
+import { AppShell } from '@/components/nav';
 import { Badge, Alert, LoadingState } from '@/components/ui';
 import { Chat, LogoMark, ArrowRight, Trash, Spark } from '@/components/icons';
 
@@ -85,6 +86,7 @@ export default function CoachPage() {
   const supabase = createClient();
 
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [profileName, setProfileName] = useState('');
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -112,15 +114,22 @@ export default function CoachPage() {
       setUser(user);
 
       // Load today's data for insight
-      const today = new Date().toISOString().split('T')[0];
-      const [{ data: goals }, { data: meals }] = await Promise.all([
+      const today = todayKey();
+      const [{ data: goals }, { data: meals }, { data: profileRow }] = await Promise.all([
         supabase.from('nutrition_goals').select('*').eq('user_id', user.id).single(),
         supabase
           .from('meal_logs')
           .select('*')
           .eq('user_id', user.id)
           .eq('logged_date', today),
+        supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('user_id', user.id)
+          .single(),
       ]);
+
+      if (profileRow?.full_name) setProfileName(profileRow.full_name);
 
       const totals = (meals || []).reduce(
         (acc, m) => ({
@@ -291,57 +300,57 @@ export default function CoachPage() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
-
   if (loading) {
     return <LoadingState label="Loading coach..." />;
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-paper font-sans text-ink antialiased">
-      <AppHeader active="coach" onSignOut={handleLogout} />
-
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-3 pb-[calc(74px+env(safe-area-inset-bottom))] pt-4 sm:px-6 md:pb-6">
-        {/* Chat header */}
-        <div className="anim-rise flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-lift">
-              <Chat className="h-5 w-5" />
-              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-paper bg-leaf" />
-            </span>
-            <div className="min-w-0">
-              <p className="eyebrow text-faint">Personalized guidance</p>
-              <h1 className="display truncate text-[24px] sm:text-[26px]">Your AI coach</h1>
+    <AppShell
+      active="coach"
+      fullHeight
+      userEmail={user?.email}
+      userName={profileName || undefined}
+    >
+      <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col">
+        {/* Chat panel */}
+        <div className="anim-rise flex min-h-0 flex-1 flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card">
+          {/* Panel header */}
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line-soft px-4 py-3 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-card">
+                <Chat className="h-[18px] w-[18px]" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface bg-leaf" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-[14px] font-semibold">NutriCal Coach</p>
+                  <Badge tone="brand">AI</Badge>
+                </div>
+                <p className="truncate text-[11px] text-muted">
+                  Always here · knows your targets and today’s meals
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleClearChat}
+              disabled={messages.length <= 1 && !isTyping}
+              title="Clear this conversation"
+              aria-label="Clear chat"
+              className="pressable flex shrink-0 items-center gap-1.5 rounded-control border border-line bg-surface px-2.5 py-2 text-[11.5px] font-semibold text-muted shadow-card transition hover:border-ember/40 hover:text-ember disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Trash className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear chat</span>
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={handleClearChat}
-            disabled={messages.length <= 1 && !isTyping}
-            title="Clear this conversation"
-            aria-label="Clear chat"
-            className="pressable flex shrink-0 items-center gap-1.5 rounded-pill border border-line bg-surface px-3 py-2 text-[12px] font-semibold text-muted shadow-card transition hover:border-ember/40 hover:text-ember disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Trash className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Clear chat</span>
-          </button>
-        </div>
-
-        {/* Chat panel */}
-        <div
-          className="anim-rise mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-line bg-surface-soft/40 shadow-card"
-          style={{ '--d': '60ms' } as React.CSSProperties}
-        >
           {/* Today's insight */}
           {insight && (
             <div className="flex items-start gap-2.5 border-b border-line-soft bg-brand-mist px-4 py-3">
               <Spark className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-              <p className="text-[12.5px] leading-relaxed text-brand-ink">
-                <span className="font-semibold text-brand-deep">
+              <p className="text-[12.5px] leading-relaxed text-ink-soft">
+                <span className="font-semibold text-brand">
                   Today&apos;s insight —{' '}
                 </span>
                 {insight}
@@ -380,7 +389,7 @@ export default function CoachPage() {
                   }`}
                 >
                   {msg.role === 'assistant' && (
-                    <span className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-deep ring-1 ring-brand/10">
+                    <span className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/10">
                       <LogoMark className="h-4 w-4" />
                     </span>
                   )}
@@ -484,7 +493,7 @@ export default function CoachPage() {
 
             {isTyping && (
               <div className="flex items-end gap-2.5">
-                <span className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-deep ring-1 ring-brand/10">
+                <span className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand ring-1 ring-brand/10">
                   <LogoMark className="h-4 w-4" />
                 </span>
                 <div className="rounded-2xl rounded-bl-md border border-line-soft bg-surface px-4 py-3.5 shadow-card">
@@ -540,9 +549,7 @@ export default function CoachPage() {
             </p>
           </div>
         </div>
-      </main>
-
-      <MobileNav active="coach" />
-    </div>
+      </div>
+    </AppShell>
   );
 }

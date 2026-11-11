@@ -1,0 +1,8 @@
+▲ Next.js 16.3.6
+- Local:         http://localhost:3100
+- Network:       http://192.168.2.109:3100
+✓ Ready in 403ms
+⚠ Warning: Next.js ignored package-lock.json in C:\Users\AAYUSH NIMKAR because it is outside the current Git repository (C:\Users\AAYUSH NIMKAR\OneDrive\Desktop\nutri-tracker).
+ To use this directory, set `outputFileTracingRoot` in your Next.js config.
+
+✓ Running next.config.ts took 41ms

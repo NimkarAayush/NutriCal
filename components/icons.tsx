@@ -193,3 +193,151 @@ export function Calendar(props: IconProps) {
     </Base>
   );
 }
+
+export function Bell(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M18 8a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6" />
+      <path d="M10.3 20a2 2 0 0 0 3.4 0" />
+    </Base>
+  );
+}
+
+export function Search(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.2-3.2" />
+    </Base>
+  );
+}
+
+export function ChartBar(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </Base>
+  );
+}
+
+export function Clock(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.2 2" />
+    </Base>
+  );
+}
+
+export function Settings(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6h.09A1.7 1.7 0 0 0 10 3.05V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z" />
+    </Base>
+  );
+}
+
+export function Droplet(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 2.7s6 6.2 6 11a6 6 0 0 1-12 0c0-4.8 6-11 6-11Z" />
+    </Base>
+  );
+}
+
+export function Trophy(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" />
+      <path d="M8 5H4v2a4 4 0 0 0 4 4M16 5h4v2a4 4 0 0 1-4 4M12 13v4M8 21h8M10 17h4" />
+    </Base>
+  );
+}
+
+export function Scale(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="3" />
+      <path d="M8 15a4 4 0 0 1 8 0" />
+      <path d="M12 15l1.8-3.5" />
+    </Base>
+  );
+}
+
+export function Sun(props: IconProps) {
+  return (
+    <Base {...props}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </Base>
+  );
+}
+
+export function Moon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />
+    </Base>
+  );
+}
+
+export function Menu(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Base>
+  );
+}
+
+export function ChevronDown(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </Base>
+  );
+}
+
+export function Dumbbell(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M6.5 6.5v11M3 9v6M17.5 6.5v11M21 9v6M6.5 12h11" />
+    </Base>
+  );
+}
+
+export function TrendUp(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="m3 17 6-6 4 4 7-7" />
+      <path d="M15 8h5v5" />
+    </Base>
+  );
+}
+
+export function ArrowUpRight(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M7 17 17 7M8 7h9v9" />
+    </Base>
+  );
+}
+
+export function Monitor(props: IconProps) {
+  return (
+    <Base {...props}>
+      <rect x="3" y="4" width="18" height="12.5" rx="2" />
+      <path d="M8 20h8M12 16.5V20" />
+    </Base>
+  );
+}
+
+export function Download(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M12 3v12M7.5 10.5 12 15l4.5-4.5" />
+      <path d="M4 19.5h16" />
+    </Base>
+  );
+}
+

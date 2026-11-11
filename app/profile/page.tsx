@@ -3,15 +3,28 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { AppHeader, MobileNav } from '@/components/nav';
+import { AppShell } from '@/components/nav';
 import {
   Button,
   Card,
   Field,
   Alert,
   LoadingState,
+  Progress,
+  Badge,
   inputClass,
 } from '@/components/ui';
+import {
+  Target,
+  Settings,
+  ArrowRight,
+  Scale,
+  Flame,
+  Dumbbell,
+  Trophy,
+  User,
+  Check,
+} from '@/components/icons';
 
 // --- TYPES ---
 interface ProfileForm {
@@ -34,6 +47,13 @@ interface ProfileForm {
   allergies: string;
   food_preferences: string;
   foods_to_avoid: string;
+}
+
+interface GoalTargets {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
 }
 
 // --- OPTIONS ---
@@ -110,7 +130,6 @@ function SelectInput({
 
 // Supabase returns plain objects ({ message, code, ... }), not Error
 // instances — so `instanceof Error` alone swallows the real message.
-// This extracts it from either shape without using `any`.
 function supabaseErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error && err.message) return err.message;
   if (
@@ -123,6 +142,15 @@ function supabaseErrorMessage(err: unknown, fallback: string): string {
     return (err as { message: string }).message;
   }
   return fallback;
+}
+
+function initialsFrom(name: string, email: string): string {
+  const source = name.trim() || email.split('@')[0] || 'N';
+  const parts = source.replace(/[._-]+/g, ' ').split(/\s+/).filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || 'N';
 }
 
 function Section({
@@ -140,13 +168,13 @@ function Section({
 }) {
   return (
     <Card
-      className="anim-rise p-6 sm:p-7"
-      style={{ '--d': delay ?? '0ms' } as React.CSSProperties}
+      className="anim-rise p-5 sm:p-6"
+      style={{ animationDelay: delay ?? '0ms' }}
     >
       <p className="eyebrow text-faint">{eyebrow}</p>
-      <h2 className="h-tight mt-1 text-[17px] font-semibold">{title}</h2>
-      {hint && <p className="mt-1 text-[13px] text-muted">{hint}</p>}
-      <div className="mt-5 space-y-4">{children}</div>
+      <h2 className="h-tight mt-1 text-[16px] font-semibold">{title}</h2>
+      {hint && <p className="mt-1 text-[12.5px] text-muted">{hint}</p>}
+      <div className="mt-4 space-y-3.5">{children}</div>
     </Card>
   );
 }
@@ -161,6 +189,9 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState('');
   const [profileId, setProfileId] = useState<string | null>(null);
   const [form, setForm] = useState<ProfileForm>(EMPTY_FORM);
+  const [email, setEmail] = useState('');
+  const [memberSince, setMemberSince] = useState('');
+  const [goals, setGoals] = useState<GoalTargets | null>(null);
 
   // --- FETCH PROFILE ---
   useEffect(() => {
@@ -173,6 +204,16 @@ export default function ProfilePage() {
         return;
       }
 
+      setEmail(user.email ?? '');
+      if (user.created_at) {
+        setMemberSince(
+          new Date(user.created_at).toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          })
+        );
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -180,8 +221,6 @@ export default function ProfilePage() {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        // Single string so the Next.js overlay shows the real message
-        // instead of an opaque object preview.
         console.error(
           `Error fetching profile: ${error.message} (${error.code})` +
             (error.details ? ` — ${error.details}` : '') +
@@ -211,6 +250,21 @@ export default function ProfilePage() {
           allergies: data.allergies || '',
           food_preferences: data.food_preferences || '',
           foods_to_avoid: data.foods_to_avoid || '',
+        });
+      }
+
+      const { data: goalData } = await supabase
+        .from('nutrition_goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (goalData) {
+        setGoals({
+          calories: Number(goalData.calorie_target),
+          protein: Number(goalData.protein_target),
+          carbs: Number(goalData.carbs_target),
+          fats: Number(goalData.fats_target),
         });
       }
 
@@ -274,13 +328,13 @@ export default function ProfilePage() {
         foods_to_avoid: form.foods_to_avoid.trim() || null,
       };
 
-      // Upsert handles both inserting and updating automatically!
+      // Upsert handles both inserting and updating automatically.
       const { data, error } = await supabase
         .from('profiles')
         .upsert([profileData])
         .select()
         .single();
-        
+
       if (error) throw error;
       if (data) setProfileId(data.id);
 
@@ -293,193 +347,361 @@ export default function ProfilePage() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
-
   // --- LOADING STATE ---
   if (loading) {
     return <LoadingState label="Loading profile..." />;
   }
 
-  return (
-    <div className="min-h-screen bg-paper font-sans text-ink antialiased">
-      <AppHeader active="profile" onSignOut={handleLogout} />
+  const displayName = form.full_name || email.split('@')[0] || 'Your profile';
+  const initials = initialsFrom(form.full_name, email);
 
-      <main className="mx-auto max-w-3xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 md:pb-16">
-        <div
-          className="anim-rise mb-6"
-          style={{ '--d': '0ms' } as React.CSSProperties}
-        >
-          <p className="eyebrow text-faint">NutriCal profile</p>
-          <h1 className="display mt-1.5 text-[30px] sm:text-[36px]">
-            {profileId ? 'Your details' : 'Tell us about you'}
-          </h1>
-          <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-muted">
-            This is the source of truth for your personalized targets and AI
-            coaching. Fill in what you know — you can update it anytime.
-          </p>
+  const trackedFields: Array<keyof ProfileForm> = [
+    'full_name',
+    'age',
+    'gender',
+    'height_cm',
+    'weight_kg',
+    'activity_level',
+    'primary_goal',
+    'diet_type',
+    'workout_frequency',
+    'workout_type',
+    'daily_steps',
+    'sleep_hours',
+    'wake_time',
+    'sleep_time',
+    'meals_per_day',
+    'food_preferences',
+  ];
+  const completedFields = trackedFields.filter((field) => form[field].trim() !== '').length;
+  const completeness = Math.round((completedFields / trackedFields.length) * 100);
+
+  return (
+    <AppShell active="profile" userEmail={email} userName={form.full_name || undefined}>
+      <div className="mx-auto w-full max-w-6xl space-y-4 sm:space-y-5">
+        {/* Header */}
+        <div className="anim-rise flex flex-wrap items-end justify-between gap-4 pt-1">
+          <div>
+            <p className="eyebrow text-brand">Profile</p>
+            <h1 className="display mt-1.5 text-[28px] sm:text-[34px]">
+              {profileId ? 'Your details' : 'Tell us about you'}
+            </h1>
+            <p className="mt-1.5 max-w-xl text-[13.5px] leading-relaxed text-muted">
+              The source of truth for your targets and AI coaching. Fill in what
+              you know — you can update it anytime.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => router.push('/settings')}>
+            <Settings className="h-4 w-4" />
+            Account settings
+          </Button>
         </div>
 
-        {success && (
-          <div className="mb-5">
-            <Alert tone="success">{success}</Alert>
-          </div>
-        )}
+        {success && <Alert tone="success">{success}</Alert>}
         {error && (
-          <div className="mb-5">
-            <Alert tone="danger">{error}</Alert>
-          </div>
+          <Alert tone="danger" onDismiss={() => setError('')}>
+            {error}
+          </Alert>
         )}
 
+        {/* Identity card */}
+        <Card className="anim-rise overflow-hidden p-5 sm:p-6" style={{ animationDelay: '60ms' }}>
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div className="flex min-w-0 items-center gap-4">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-[20px] font-bold text-brand">
+                {initials}
+              </span>
+              <div className="min-w-0">
+                <h2 className="truncate text-[20px] font-semibold tracking-tight">
+                  {displayName}
+                </h2>
+                <p className="mt-0.5 truncate text-[12.5px] text-muted">{email}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {form.primary_goal && <Badge tone="brand">{form.primary_goal}</Badge>}
+                  {form.diet_type && <Badge tone="teal">{form.diet_type}</Badge>}
+                  {form.activity_level && (
+                    <Badge tone="neutral">{form.activity_level}</Badge>
+                  )}
+                  {!form.primary_goal && !form.diet_type && (
+                    <span className="text-[11.5px] text-faint">
+                      Add your goal and diet below.
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {memberSince && (
+                <div className="hidden text-right sm:block">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-faint">
+                    Member since
+                  </p>
+                  <p className="mt-0.5 text-[12.5px] font-semibold text-ink-soft">
+                    {memberSince}
+                  </p>
+                </div>
+              )}
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-soft text-muted">
+                <User className="h-4.5 w-4.5" />
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-line-soft pt-4 sm:grid-cols-4">
+            {[
+              { label: 'Weight', value: form.weight_kg ? `${form.weight_kg} kg` : '—', icon: Scale },
+              { label: 'Height', value: form.height_cm ? `${form.height_cm} cm` : '—', icon: Target },
+              { label: 'Daily energy', value: goals ? `${goals.calories.toLocaleString()} kcal` : 'Not set', icon: Flame },
+              { label: 'Protein target', value: goals ? `${goals.protein} g` : 'Not set', icon: Dumbbell },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="min-w-0">
+                  <p className="flex items-center gap-1 text-[10px] font-medium text-faint">
+                    <Icon className="h-3 w-3" />
+                    {stat.label}
+                  </p>
+                  <p className="nums mt-0.5 truncate text-[15px] font-semibold">
+                    {stat.value}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex items-center gap-3">
+            <Progress value={completeness} colorClass="bg-brand" className="flex-1" />
+            <span className="nums shrink-0 text-[10.5px] font-semibold text-muted">
+              {completeness}% complete
+            </span>
+          </div>
+        </Card>
+
+        {/* Goals summary */}
+        <Card className="anim-rise p-5" style={{ animationDelay: '100ms' }}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-1.5 text-[13.5px] font-semibold">
+                <Trophy className="h-4 w-4 text-ember" />
+                Your daily targets
+              </p>
+              <p className="mt-0.5 text-[11.5px] text-muted">
+                {goals
+                  ? 'Saved targets used across your dashboard and coach.'
+                  : 'No custom targets yet — NutriCal is using defaults.'}
+              </p>
+            </div>
+            <Button variant="soft" size="sm" onClick={() => router.push('/dashboard#goals')}>
+              Adjust targets
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {[
+              { label: 'Calories', value: goals?.calories.toLocaleString() ?? '2,200', unit: 'kcal', dot: 'bg-brand' },
+              { label: 'Protein', value: goals?.protein ?? 140, unit: 'g', dot: 'bg-macro-protein' },
+              { label: 'Carbs', value: goals?.carbs ?? 250, unit: 'g', dot: 'bg-macro-carbs' },
+              { label: 'Fats', value: goals?.fats ?? 65, unit: 'g', dot: 'bg-macro-fats' },
+            ].map((goal) => (
+              <div key={goal.label} className="rounded-panel bg-paper px-3.5 py-3">
+                <p className="flex items-center gap-1.5 text-[10.5px] font-medium text-muted">
+                  <span className={`h-2 w-2 rounded-full ${goal.dot}`} />
+                  {goal.label}
+                </p>
+                <p className="nums mt-1 text-[18px] font-semibold leading-none">
+                  {goal.value}
+                  <span className="ml-1 text-[10px] font-medium text-faint">{goal.unit}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Form */}
         <form onSubmit={handleSave} className="space-y-4">
-          <Section
-            eyebrow="Personal"
-            title="Who you are"
-            delay="40ms"
-          >
-            <Field label="Full name">
-              <TextInput
-                type="text"
-                value={form.full_name}
-                onChange={(e) => handleChange('full_name', e.target.value)}
-                placeholder="Your full name"
-                required
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Age">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Section eyebrow="Personal" title="Who you are" delay="40ms">
+              <Field label="Full name">
                 <TextInput
-                  type="number"
-                  value={form.age}
-                  onChange={(e) => handleChange('age', e.target.value)}
-                  placeholder="25"
-                  min={1}
-                  max={120}
+                  type="text"
+                  value={form.full_name}
+                  onChange={(e) => handleChange('full_name', e.target.value)}
+                  placeholder="Your full name"
+                  required
                 />
               </Field>
-              <Field label="Gender">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Age">
+                  <TextInput
+                    type="number"
+                    value={form.age}
+                    onChange={(e) => handleChange('age', e.target.value)}
+                    placeholder="25"
+                    min={1}
+                    max={120}
+                  />
+                </Field>
+                <Field label="Gender">
+                  <SelectInput
+                    value={form.gender}
+                    onChange={(e) => handleChange('gender', e.target.value)}
+                  >
+                    <option value="">Select</option>
+                    {GENDERS.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </Field>
+              </div>
+              <Field label="Primary goal">
                 <SelectInput
-                  value={form.gender}
-                  onChange={(e) => handleChange('gender', e.target.value)}
+                  value={form.primary_goal}
+                  onChange={(e) => handleChange('primary_goal', e.target.value)}
                 >
-                  <option value="">Select</option>
-                  {GENDERS.map((g) => (
+                  <option value="">Select goal</option>
+                  {PRIMARY_GOALS.map((g) => (
                     <option key={g} value={g}>
                       {g}
                     </option>
                   ))}
                 </SelectInput>
               </Field>
-            </div>
-          </Section>
+            </Section>
 
-          <Section eyebrow="Body" title="Measurements" delay="80ms">
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Height (cm)">
-                <TextInput
-                  type="number"
-                  value={form.height_cm}
-                  onChange={(e) => handleChange('height_cm', e.target.value)}
-                  placeholder="175"
-                  min={50}
-                  max={300}
-                  step="0.1"
-                />
-              </Field>
-              <Field label="Weight (kg)">
-                <TextInput
-                  type="number"
-                  value={form.weight_kg}
-                  onChange={(e) => handleChange('weight_kg', e.target.value)}
-                  placeholder="70"
-                  min={20}
-                  max={500}
-                  step="0.1"
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section
-            eyebrow="Lifestyle"
-            title="Daily activity & rest"
-            delay="120ms"
-          >
-            <Field label="Activity level">
-              <SelectInput
-                value={form.activity_level}
-                onChange={(e) => handleChange('activity_level', e.target.value)}
-              >
-                <option value="">Select activity level</option>
-                {ACTIVITY_LEVELS.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </SelectInput>
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Daily steps">
-                <TextInput
-                  type="number"
-                  value={form.daily_steps}
-                  onChange={(e) => handleChange('daily_steps', e.target.value)}
-                  placeholder="8000"
-                  min={0}
-                />
-              </Field>
-              <Field label="Sleep (hours)">
-                <TextInput
-                  type="number"
-                  value={form.sleep_hours}
-                  onChange={(e) => handleChange('sleep_hours', e.target.value)}
-                  placeholder="7.5"
-                  min={0}
-                  max={24}
-                  step="0.5"
-                />
-              </Field>
-            </div>
-          </Section>
-
-          <Section eyebrow="Workout" title="Training routine" delay="160ms">
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Frequency (days/week)">
-                <TextInput
-                  type="number"
-                  value={form.workout_frequency}
-                  onChange={(e) =>
-                    handleChange('workout_frequency', e.target.value)
-                  }
-                  placeholder="4"
-                  min={0}
-                  max={7}
-                />
-              </Field>
-              <Field label="Workout type">
+            <Section eyebrow="Body" title="Measurements" delay="80ms">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Height (cm)">
+                  <TextInput
+                    type="number"
+                    value={form.height_cm}
+                    onChange={(e) => handleChange('height_cm', e.target.value)}
+                    placeholder="175"
+                    min={50}
+                    max={300}
+                    step="0.1"
+                  />
+                </Field>
+                <Field label="Weight (kg)">
+                  <TextInput
+                    type="number"
+                    value={form.weight_kg}
+                    onChange={(e) => handleChange('weight_kg', e.target.value)}
+                    placeholder="70"
+                    min={20}
+                    max={500}
+                    step="0.1"
+                  />
+                </Field>
+              </div>
+              <Field label="Activity level">
                 <SelectInput
-                  value={form.workout_type}
-                  onChange={(e) => handleChange('workout_type', e.target.value)}
+                  value={form.activity_level}
+                  onChange={(e) => handleChange('activity_level', e.target.value)}
                 >
-                  <option value="">Select type</option>
-                  {WORKOUT_TYPES.map((w) => (
-                    <option key={w} value={w}>
-                      {w}
+                  <option value="">Select activity level</option>
+                  {ACTIVITY_LEVELS.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
                     </option>
                   ))}
                 </SelectInput>
               </Field>
-            </div>
-            <Field label="Workout time">
-              <TextInput
-                type="time"
-                value={form.workout_time}
-                onChange={(e) => handleChange('workout_time', e.target.value)}
-              />
-            </Field>
-          </Section>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Daily steps">
+                  <TextInput
+                    type="number"
+                    value={form.daily_steps}
+                    onChange={(e) => handleChange('daily_steps', e.target.value)}
+                    placeholder="8000"
+                    min={0}
+                  />
+                </Field>
+                <Field label="Sleep (hours)">
+                  <TextInput
+                    type="number"
+                    value={form.sleep_hours}
+                    onChange={(e) => handleChange('sleep_hours', e.target.value)}
+                    placeholder="7.5"
+                    min={0}
+                    max={24}
+                    step="0.5"
+                  />
+                </Field>
+              </div>
+            </Section>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Section eyebrow="Training" title="Workout routine" delay="120ms">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Days per week">
+                  <TextInput
+                    type="number"
+                    value={form.workout_frequency}
+                    onChange={(e) =>
+                      handleChange('workout_frequency', e.target.value)
+                    }
+                    placeholder="4"
+                    min={0}
+                    max={7}
+                  />
+                </Field>
+                <Field label="Workout type">
+                  <SelectInput
+                    value={form.workout_type}
+                    onChange={(e) => handleChange('workout_type', e.target.value)}
+                  >
+                    <option value="">Select type</option>
+                    {WORKOUT_TYPES.map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </Field>
+              </div>
+              <Field label="Usual workout time">
+                <TextInput
+                  type="time"
+                  value={form.workout_time}
+                  onChange={(e) => handleChange('workout_time', e.target.value)}
+                />
+              </Field>
+            </Section>
+
+            <Section eyebrow="Routine" title="Sleep schedule" delay="160ms">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Wake-up time">
+                  <TextInput
+                    type="time"
+                    value={form.wake_time}
+                    onChange={(e) => handleChange('wake_time', e.target.value)}
+                  />
+                </Field>
+                <Field label="Sleep time">
+                  <TextInput
+                    type="time"
+                    value={form.sleep_time}
+                    onChange={(e) => handleChange('sleep_time', e.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field label="Meals per day">
+                <TextInput
+                  type="number"
+                  value={form.meals_per_day}
+                  onChange={(e) => handleChange('meals_per_day', e.target.value)}
+                  placeholder="3"
+                  min={1}
+                  max={10}
+                />
+              </Field>
+            </Section>
+          </div>
 
           <Section
             eyebrow="Nutrition"
@@ -487,7 +709,7 @@ export default function ProfilePage() {
             hint="The AI coach adapts suggestions to these."
             delay="200ms"
           >
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Diet type">
                 <SelectInput
                   value={form.diet_type}
@@ -501,96 +723,55 @@ export default function ProfilePage() {
                   ))}
                 </SelectInput>
               </Field>
-              <Field label="Meals per day">
+              <Field label="Food preferences">
                 <TextInput
-                  type="number"
-                  value={form.meals_per_day}
-                  onChange={(e) => handleChange('meals_per_day', e.target.value)}
-                  placeholder="3"
-                  min={1}
-                  max={10}
+                  type="text"
+                  value={form.food_preferences}
+                  onChange={(e) =>
+                    handleChange('food_preferences', e.target.value)
+                  }
+                  placeholder="e.g. Indian cuisine, spicy food…"
                 />
               </Field>
-            </div>
-            <Field label="Food preferences">
-              <TextInput
-                type="text"
-                value={form.food_preferences}
-                onChange={(e) =>
-                  handleChange('food_preferences', e.target.value)
-                }
-                placeholder="e.g. Indian cuisine, spicy food…"
-              />
-            </Field>
-            <Field label="Foods to avoid">
-              <TextInput
-                type="text"
-                value={form.foods_to_avoid}
-                onChange={(e) => handleChange('foods_to_avoid', e.target.value)}
-                placeholder="e.g. mushrooms, cilantro…"
-              />
-            </Field>
-            <Field label="Allergies">
-              <TextInput
-                type="text"
-                value={form.allergies}
-                onChange={(e) => handleChange('allergies', e.target.value)}
-                placeholder="e.g. peanuts, dairy…"
-              />
-            </Field>
-          </Section>
-
-          <Section eyebrow="Routine" title="Sleep schedule" delay="240ms">
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Wake-up time">
+              <Field label="Foods to avoid">
                 <TextInput
-                  type="time"
-                  value={form.wake_time}
-                  onChange={(e) => handleChange('wake_time', e.target.value)}
+                  type="text"
+                  value={form.foods_to_avoid}
+                  onChange={(e) => handleChange('foods_to_avoid', e.target.value)}
+                  placeholder="e.g. mushrooms, cilantro…"
                 />
               </Field>
-              <Field label="Sleep time">
+              <Field label="Allergies">
                 <TextInput
-                  type="time"
-                  value={form.sleep_time}
-                  onChange={(e) => handleChange('sleep_time', e.target.value)}
+                  type="text"
+                  value={form.allergies}
+                  onChange={(e) => handleChange('allergies', e.target.value)}
+                  placeholder="e.g. peanuts, dairy…"
                 />
               </Field>
             </div>
           </Section>
 
-          <Section eyebrow="Goal" title="Primary goal" delay="280ms">
-            <Field label="What are you working toward?">
-              <SelectInput
-                value={form.primary_goal}
-                onChange={(e) => handleChange('primary_goal', e.target.value)}
+          <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] z-20 flex items-center justify-between gap-3 rounded-card border border-line bg-surface/95 p-3 shadow-lift backdrop-blur-md lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none">
+            <p className="hidden items-center gap-1.5 text-[11.5px] text-muted sm:flex">
+              <Check className="h-3.5 w-3.5 text-brand" />
+              Changes apply to your dashboard and coach immediately.
+            </p>
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => router.push('/dashboard')}
               >
-                <option value="">Select goal</option>
-                {PRIMARY_GOALS.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </SelectInput>
-            </Field>
-          </Section>
-
-          <div className="sticky bottom-[76px] flex justify-end gap-2 rounded-card border border-line bg-surface/95 p-3 shadow-lift backdrop-blur-md md:static md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => router.push('/dashboard')}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" loading={saving}>
-              {saving ? 'Saving' : 'Save profile'}
-            </Button>
+                Cancel
+              </Button>
+              <Button type="submit" loading={saving}>
+                {saving ? 'Saving' : 'Save profile'}
+              </Button>
+            </div>
           </div>
         </form>
-      </main>
-
-      <MobileNav active="profile" />
-    </div>
+      </div>
+    </AppShell>
   );
 }

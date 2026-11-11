@@ -1,457 +1,595 @@
+import Image from 'next/image';
 import Link from 'next/link';
-import { LogoMark, Leaf, Target, Chat, ArrowRight } from '@/components/icons';
+import {
+  LogoMark,
+  Leaf,
+  Target,
+  Chat,
+  ArrowRight,
+  Check,
+  Bowl,
+  Spark,
+  ChartBar,
+  Droplet,
+  Plan,
+  Flame,
+  TrendUp,
+} from '@/components/icons';
 
-const DAY_MEALS = [
+const FEATURE_STRIP = [
   {
-    tag: 'Breakfast · 8:10',
-    name: 'Oats, banana & milk',
-    detail: 'Protein 14g · Carbs 68g · Fat 9g',
-    kcal: '412 kcal',
+    icon: Bowl,
+    title: 'Meal logging',
+    copy: 'Describe a meal in plain words.',
   },
   {
-    tag: 'Lunch · 1:20',
-    name: 'Paneer rice bowl',
-    detail: 'Protein 28g · Carbs 74g · Fat 18g',
-    kcal: '568 kcal',
+    icon: Target,
+    title: 'Personalized goals',
+    copy: 'Targets calculated from your body.',
   },
   {
-    tag: 'Snack · 4:45',
-    name: 'Greek yogurt & fruit',
-    detail: 'Protein 18g · Carbs 24g · Fat 4g',
-    kcal: '214 kcal',
+    icon: Chat,
+    title: 'AI nutrition coach',
+    copy: 'Guidance that reads your day.',
   },
   {
-    tag: 'Dinner · 8:00',
-    name: 'Dal, roti & vegetables',
-    detail: 'Protein 22g · Carbs 71g · Fat 12g',
-    kcal: '486 kcal',
+    icon: TrendUp,
+    title: 'Progress tracking',
+    copy: 'Trends, streaks and honest totals.',
   },
 ];
 
-const MACROS = [
-  { label: 'Protein', value: '112g', target: '140g', pct: 80, bar: 'bg-macro-protein', note: 'eggs · dal · yogurt' },
-  { label: 'Carbs', value: '208g', target: '250g', pct: 66, bar: 'bg-macro-carbs', note: 'oats · rice · roti' },
-  { label: 'Fats', value: '51g', target: '65g', pct: 58, bar: 'bg-macro-fats', note: 'milk · paneer · nuts' },
+const STEPS = [
+  {
+    step: '01',
+    title: 'Tell us about you',
+    copy: 'Age, height, weight, activity and goal — once. NutriCal calculates starting targets you review and confirm.',
+    icon: Target,
+  },
+  {
+    step: '02',
+    title: 'Log meals the easy way',
+    copy: 'Type “2 boiled eggs, toast & an apple”. AI estimates calories, macros and key micronutrients in seconds.',
+    icon: Spark,
+  },
+  {
+    step: '03',
+    title: 'See what to do next',
+    copy: 'A daily dashboard, weekly trends and a coach that knows what you ate — so the next meal is an informed one.',
+    icon: ChartBar,
+  },
 ];
 
-const GOALS = [
-  { label: 'Daily calories', value: '2,200', unit: 'kcal' },
-  { label: 'Protein', value: '140', unit: 'g' },
-  { label: 'Carbs', value: '250', unit: 'g' },
-  { label: 'Fats', value: '65', unit: 'g' },
+const FEATURES = [
+  {
+    icon: Spark,
+    title: 'AI meal estimation',
+    copy: 'No food codes or weighing scales. Write it like you would say it and review the estimate before it is saved.',
+  },
+  {
+    icon: Droplet,
+    title: 'Micronutrients too',
+    copy: 'Vitamin A, C, D, iron, calcium and potassium are estimated alongside macros, against general adult reference values.',
+  },
+  {
+    icon: Target,
+    title: 'Targets built for you',
+    copy: 'Mifflin-St Jeor BMR, activity multiplier and goal adjustment produce a starting point — you stay in control.',
+  },
+  {
+    icon: Chat,
+    title: 'A coach with context',
+    copy: 'It sees your profile, targets and today’s meals. Actions like logging a meal always require your confirmation.',
+  },
+  {
+    icon: Plan,
+    title: 'Guided plan builder',
+    copy: 'A short conversation collects what matters and proposes a plan. Nothing is saved until you accept it.',
+  },
+  {
+    icon: ChartBar,
+    title: 'Analytics & history',
+    copy: 'Weekly and monthly trends, protein consistency, macro split, goal completion and a calendar of past days.',
+  },
 ];
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-paper font-sans text-ink antialiased">
-      {/* Masthead */}
-      <header className="border-b border-line">
-        <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between px-4 sm:px-6">
-          <span className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white">
+      {/* ---------------- Navigation ---------------- */}
+      <header className="sticky top-0 z-40 border-b border-line/80 bg-paper/85 backdrop-blur-md">
+        <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="NutriCal home">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white shadow-card">
               <LogoMark className="h-5 w-5" />
             </span>
-            <span className="display text-[19px]">NutriCal</span>
-          </span>
-          <div className="flex items-center gap-1.5">
+            <span className="text-[19px] font-semibold tracking-tight">NutriCal</span>
+          </Link>
+
+          <nav className="hidden items-center gap-1 md:flex" aria-label="Marketing">
+            {[
+              { label: 'Features', href: '#features' },
+              { label: 'How it works', href: '#how' },
+              { label: 'Analytics', href: '#analytics' },
+            ].map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                className="rounded-full px-4 py-2 text-[13.5px] font-medium text-muted transition hover:bg-surface-soft hover:text-ink"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
             <Link
               href="/login"
-              className="rounded-full px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface-soft hover:text-ink"
+              className="rounded-control px-3.5 py-2 text-[13px] font-semibold text-ink-soft transition hover:bg-surface-soft"
             >
               Sign in
             </Link>
             <Link
               href="/login"
-              className="pressable rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-soft"
+              className="pressable inline-flex items-center gap-1.5 rounded-control bg-brand px-4 py-2.5 text-[13px] font-semibold text-white shadow-card transition hover:bg-brand-deep"
             >
-              Start tracking
+              Get started
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>
       </header>
 
       <main>
-        {/* ============ HERO — editorial, asymmetric ============ */}
-        <section className="mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6 sm:pt-16 lg:pt-20">
-          <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
+        {/* ---------------- Hero ---------------- */}
+        <section className="relative overflow-hidden">
+          <div
+            className="pointer-events-none absolute -right-24 -top-24 h-[520px] w-[520px] rounded-full bg-brand-soft/60 blur-3xl"
+            aria-hidden="true"
+          />
+          <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-14 pt-12 sm:px-6 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:pb-20 lg:pt-20">
             <div className="max-w-xl">
-              <p
-                className="anim-rise flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-brand-deep"
-                style={{ '--d': '0ms' } as React.CSSProperties}
-              >
-                <Leaf className="h-4 w-4" />
-                A personal nutrition companion
+              <p className="anim-rise inline-flex items-center gap-2 rounded-pill border border-brand/20 bg-brand-mist px-3.5 py-1.5 text-[11.5px] font-semibold text-brand-deep">
+                <Leaf className="h-3.5 w-3.5" />
+                AI-powered nutrition, built for real life
               </p>
+
               <h1
-                className="display anim-rise mt-5 text-[48px] leading-[1.02] sm:text-[68px]"
-                style={{ '--d': '70ms' } as React.CSSProperties}
+                className="display anim-rise mt-6 text-[46px] leading-[0.98] sm:text-[62px]"
+                style={{ animationDelay: '60ms' }}
               >
-                Understand what{' '}
-                <em className="display-italic text-brand-deep">you</em> eat.
+                Understand
+                <br />
+                what you eat.
+                <br />
+                <span className="text-brand">Live Healthier.</span>
               </h1>
+
               <p
-                className="anim-rise mt-6 max-w-md text-[17px] leading-relaxed text-muted"
-                style={{ '--d': '140ms' } as React.CSSProperties}
+                className="anim-rise mt-6 max-w-lg text-[16.5px] leading-relaxed text-muted"
+                style={{ animationDelay: '120ms' }}
               >
-                NutriCal turns your everyday meals into a clear picture of
-                your calories, macros and nutrition — so you know what to do
-                next.
+                Track calories and macros in plain language, get targets built
+                for your body, and let an AI coach turn today’s meals into
+                tomorrow’s plan.
               </p>
+
               <div
                 className="anim-rise mt-8 flex flex-wrap items-center gap-3"
-                style={{ '--d': '210ms' } as React.CSSProperties}
+                style={{ animationDelay: '180ms' }}
               >
                 <Link
                   href="/login"
-                  className="pressable inline-flex items-center gap-2 rounded-full bg-brand px-7 py-3.5 text-[15px] font-semibold text-white shadow-card transition hover:bg-brand-deep"
+                  className="pressable inline-flex items-center gap-2 rounded-control bg-brand px-6 py-3.5 text-[15px] font-semibold text-white shadow-lift transition hover:bg-brand-deep"
                 >
-                  Start tracking
+                  Start your journey
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-                <Link
+                <a
                   href="#how"
-                  className="pressable inline-flex items-center gap-2 rounded-full border border-line bg-surface px-7 py-3.5 text-[15px] font-semibold text-ink-soft transition hover:border-muted"
+                  className="pressable inline-flex items-center gap-2 rounded-control border border-line bg-surface px-6 py-3.5 text-[15px] font-semibold text-ink-soft shadow-card transition hover:border-faint"
                 >
                   See how it works
-                </Link>
+                </a>
               </div>
-              <p
-                className="anim-rise mt-6 text-[13px] text-faint"
-                style={{ '--d': '260ms' } as React.CSSProperties}
+
+              <ul
+                className="anim-rise mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-muted"
+                style={{ animationDelay: '240ms' }}
               >
-                Free to start · No credit card · Your data stays yours
-              </p>
-            </div>
-
-            {/* Today snapshot — the product, working */}
-            <div
-              className="anim-rise lg:pt-6"
-              style={{ '--d': '180ms' } as React.CSSProperties}
-            >
-              <div className="rounded-card border border-line bg-surface p-7 shadow-lift sm:p-8">
-                <div className="flex items-baseline justify-between">
-                  <p className="eyebrow text-faint">Today</p>
-                  <p className="text-xs text-faint">Wed, Sep 30</p>
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="nums display text-6xl sm:text-7xl">
-                    1,842
-                  </span>
-                  <span className="text-sm text-faint">
-                    kcal <span className="nums">of 2,200</span>
-                  </span>
-                </div>
-                <div
-                  className="mt-4 h-2 overflow-hidden rounded-full bg-surface-soft"
-                  role="img"
-                  aria-label="84 percent of calorie target"
-                >
-                  <div
-                    className="bar-grow h-full w-[84%] rounded-full bg-brand"
-                    style={{ '--d': '350ms' } as React.CSSProperties}
-                  />
-                </div>
-                <div className="mt-6 space-y-4">
-                  {[
-                    { label: 'Protein', v: '112g', t: '140g', pct: 80, bar: 'bg-macro-protein' },
-                    { label: 'Carbs', v: '208g', t: '250g', pct: 66, bar: 'bg-macro-carbs' },
-                    { label: 'Fats', v: '51g', t: '65g', pct: 58, bar: 'bg-macro-fats' },
-                  ].map((m, i) => (
-                    <div key={m.label} className="flex items-center gap-3">
-                      <span className="w-14 text-[13px] font-medium text-muted">
-                        {m.label}
+                {['Free to start', 'No food database grind', 'Your data stays yours'].map(
+                  (item) => (
+                    <li key={item} className="flex items-center gap-1.5">
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
+                        <Check className="h-2.5 w-2.5" />
                       </span>
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-soft">
-                        <div
-                          className={`bar-grow h-full rounded-full ${m.bar}`}
-                          style={{ width: `${m.pct}%`, '--d': `${450 + i * 100}ms` } as React.CSSProperties}
-                        />
-                      </div>
-                      <span className="nums w-[92px] text-right text-[13px] text-muted">
-                        {m.v} <span className="text-faint">/ {m.t}</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-6 border-t border-line-soft pt-4 text-sm leading-relaxed text-ink-soft">
-                  You&apos;re <strong className="nums font-semibold">358 kcal</strong> away
-                  from your daily target.
-                </p>
-              </div>
-              <p className="mt-3 text-center text-xs text-faint">
-                An actual NutriCal day — not a mockup style.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ============ FROM MEAL TO INSIGHT ============ */}
-        <section id="how" className="border-t border-line">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-            <div className="max-w-2xl">
-              <p className="eyebrow text-brand-deep">From meal to insight</p>
-              <h2 className="display mt-3 text-4xl sm:text-5xl">
-                You eat. <em className="display-italic">NutriCal</em> does the
-                maths.
-              </h2>
-              <p className="mt-4 max-w-lg text-[16px] leading-relaxed text-muted">
-                Just write what you had, the way you&apos;d say it. NutriCal
-                estimates the nutrition and files it into your day.
-              </p>
-            </div>
-
-            <div className="mt-10 grid gap-x-10 gap-y-8 lg:grid-cols-[0.95fr_1.05fr]">
-              {/* Meal log example */}
-              <div className="anim-rise rounded-card border border-line bg-surface p-6 shadow-card sm:p-7">
-                <p className="eyebrow text-faint">A day of eating</p>
-                <ul className="mt-4 divide-y divide-line-soft">
-                  {DAY_MEALS.map((m) => (
-                    <li key={m.name} className="flex items-baseline justify-between gap-4 py-3.5">
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-faint">
-                          {m.tag}
-                        </p>
-                        <p className="mt-0.5 font-display text-[19px] font-medium tracking-tight">
-                          {m.name}
-                        </p>
-                        <p className="mt-0.5 text-[13px] text-muted">{m.detail}</p>
-                      </div>
-                      <span className="nums shrink-0 text-[15px] font-semibold">
-                        {m.kcal}
-                      </span>
+                      {item}
                     </li>
-                  ))}
-                </ul>
+                  )
+                )}
+              </ul>
+            </div>
+
+            {/* Product visual */}
+            <div className="anim-rise relative mx-auto w-full max-w-[540px]" style={{ animationDelay: '160ms' }}>
+              <div className="absolute inset-x-6 bottom-0 top-10 rounded-[40px] bg-brand-soft/70" aria-hidden="true" />
+              <div className="relative mx-auto aspect-[5/4.4] w-[86%] overflow-hidden rounded-[36px] shadow-lift">
+                <Image
+                  src="/images/hero-bowl.jpg"
+                  alt="A colourful bowl of vegetables, grains and grilled protein"
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 90vw, 520px"
+                  className="object-cover"
+                />
               </div>
 
-              {/* What the user gets */}
-              <div className="flex flex-col justify-center">
-                <div className="space-y-7">
+              <div className="anim-pop absolute right-0 top-4 flex items-center gap-3 rounded-card border border-line bg-surface/95 px-4 py-3 shadow-lift backdrop-blur sm:right-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
+                  <Flame className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="nums text-lg font-semibold leading-none">720</p>
+                  <p className="text-[10.5px] text-muted">kcal logged today</p>
+                </div>
+              </div>
+
+              <div className="anim-pop absolute -bottom-3 left-0 rounded-card border border-line bg-surface/95 p-3.5 shadow-lift backdrop-blur sm:left-2" style={{ animationDelay: '120ms' }}>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-faint">
+                  Today’s macros
+                </p>
+                <div className="flex items-center gap-4">
                   {[
-                    {
-                      n: '01',
-                      t: 'Record it simply',
-                      b: '“Dal, roti & vegetables” is enough. No weighing scales, no food codes, no friction.',
-                    },
-                    {
-                      n: '02',
-                      t: 'See the full picture',
-                      b: 'Calories and macros land in your daily totals the moment you log, with progress against your targets.',
-                    },
-                    {
-                      n: '03',
-                      t: 'Know what to do next',
-                      b: 'Short on protein at 7pm? NutriCal says so — and suggests what would close the gap.',
-                    },
-                  ].map((s) => (
-                    <div key={s.n} className="flex gap-5">
-                      <span className="nums display-italic text-2xl text-faint">
-                        {s.n}
-                      </span>
+                    { label: 'Protein', value: '62g', color: 'bg-macro-protein' },
+                    { label: 'Carbs', value: '85g', color: 'bg-macro-carbs' },
+                    { label: 'Fats', value: '28g', color: 'bg-macro-fats' },
+                  ].map((macro) => (
+                    <div key={macro.label} className="flex items-center gap-1.5">
+                      <span className={`h-2 w-2 rounded-full ${macro.color}`} />
                       <div>
-                        <h3 className="h-tight text-lg font-semibold">{s.t}</h3>
-                        <p className="mt-1 max-w-md text-[15px] leading-relaxed text-muted">
-                          {s.b}
-                        </p>
+                        <p className="nums text-[13px] font-semibold leading-none">{macro.value}</p>
+                        <p className="mt-0.5 text-[9.5px] text-faint">{macro.label}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
+
+              <div className="anim-pop absolute right-2 bottom-10 rounded-pill border border-brand/20 bg-brand-mist px-3 py-1.5 text-[10.5px] font-semibold text-brand-deep shadow-card">
+                On track · 1,780 kcal left
+              </div>
+            </div>
+          </div>
+
+          {/* Feature strip */}
+          <div className="relative mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {FEATURE_STRIP.map((feature, index) => {
+                const Icon = feature.icon;
+                return (
+                  <div
+                    key={feature.title}
+                    className="anim-rise hover-lift flex items-start gap-3 rounded-card border border-line bg-surface p-4 shadow-card"
+                    style={{ animationDelay: `${index * 60}ms` }}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-mist text-brand-deep">
+                      <Icon className="h-[18px] w-[18px]" />
+                    </span>
+                    <div>
+                      <p className="text-[13px] font-semibold">{feature.title}</p>
+                      <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted">{feature.copy}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
 
-        {/* ============ NUTRITION AT A GLANCE ============ */}
-        <section className="border-t border-line bg-surface">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-              <div>
-                <p className="eyebrow text-brand-deep">Nutrition at a glance</p>
-                <h2 className="display mt-3 text-4xl sm:text-5xl">
-                  Four numbers tell the whole story.
+        {/* ---------------- How it works ---------------- */}
+        <section id="how" className="border-y border-line bg-surface">
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+              <div className="max-w-2xl">
+                <p className="eyebrow text-brand">How it works</p>
+                <h2 className="display mt-3 text-4xl sm:text-[46px]">
+                  Three steps. No spreadsheets.
                 </h2>
               </div>
-              <p className="max-w-md text-[15px] leading-relaxed text-muted lg:justify-self-end">
-                No chart overload. Calories set the budget; protein, carbs and
-                fats show the balance. Readable in under five seconds.
+              <p className="max-w-sm text-[14px] leading-relaxed text-muted">
+                NutriCal stays useful because it stays simple: real targets,
+                fast logging, and advice grounded in what you actually ate.
               </p>
             </div>
 
-            <div className="mt-10 grid gap-px overflow-hidden rounded-card border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-              <div className="bg-surface p-7">
-                <p className="eyebrow text-faint">Calories</p>
-                <p className="nums display mt-2 text-5xl text-brand-deep">1,842</p>
-                <p className="nums mt-1 text-sm text-muted">of 2,200 kcal · 84%</p>
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-soft">
-                  <div className="bar-grow h-full w-[84%] rounded-full bg-brand" />
-                </div>
-              </div>
-              {MACROS.map((m, i) => (
-                <div key={m.label} className="bg-surface p-7">
-                  <p className="eyebrow text-faint">{m.label}</p>
-                  <p className="nums display mt-2 text-5xl">
-                    {m.value}
-                    <span className="ml-1 align-middle font-sans text-sm font-medium text-faint">
-                      / {m.target}
+            <div className="mt-10 grid gap-4 lg:grid-cols-3">
+              {STEPS.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <div
+                    key={step.step}
+                    className="anim-rise relative rounded-card border border-line bg-paper p-6"
+                    style={{ animationDelay: `${index * 80}ms` }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-white shadow-card">
+                        <Icon className="h-[18px] w-[18px]" />
+                      </span>
+                      <span className="nums text-[26px] font-semibold text-line">{step.step}</span>
+                    </div>
+                    <h3 className="mt-5 text-[17px] font-semibold tracking-tight">{step.title}</h3>
+                    <p className="mt-2 text-[13.5px] leading-relaxed text-muted">{step.copy}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------- Analytics preview ---------------- */}
+        <section id="analytics" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <p className="eyebrow text-brand">Analytics that answer questions</p>
+              <h2 className="display mt-3 text-4xl sm:text-[46px]">
+                Not more data.
+                <br />
+                Better decisions.
+              </h2>
+              <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted">
+                See the week at a glance, spot the protein dips, and know
+                whether you’re actually hitting your target — not just logging
+                into an app.
+              </p>
+
+              <ul className="mt-6 space-y-3">
+                {[
+                  'Calorie trend with your target line',
+                  'Protein consistency and macro split',
+                  'Goal completion and streak history',
+                  'A calendar of every logged day',
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-[14px] text-ink-soft">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
+                      <Check className="h-3 w-3" />
                     </span>
-                  </p>
-                  <p className="mt-1 text-[13px] text-faint">{m.note}</p>
-                  <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-soft">
-                    <div
-                      className={`bar-grow h-full rounded-full ${m.bar}`}
-                      style={{ width: `${m.pct}%`, '--d': `${i * 120}ms` } as React.CSSProperties}
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-[36px] bg-brand-mist" aria-hidden="true" />
+              <div className="relative rounded-card border border-line bg-surface p-5 shadow-lift sm:p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[15px] font-semibold">Your nutrition analytics</p>
+                    <p className="mt-0.5 text-[11.5px] text-muted">A product preview</p>
+                  </div>
+                  <span className="rounded-pill bg-brand px-2.5 py-1 text-[10px] font-semibold text-white">
+                    7D
+                  </span>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Average calories', value: '2,230', unit: 'kcal', tone: 'text-brand-deep' },
+                    { label: 'Protein consistency', value: '92', unit: '%', tone: 'text-macro-protein' },
+                  ].map((stat) => (
+                    <div key={stat.label} className="rounded-panel bg-paper p-3.5">
+                      <p className="text-[10.5px] font-medium text-muted">{stat.label}</p>
+                      <p className={`nums mt-1 text-[22px] font-semibold leading-none ${stat.tone}`}>
+                        {stat.value}
+                        <span className="ml-1 text-[10px] font-medium text-faint">{stat.unit}</span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 rounded-panel border border-line-soft p-3.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11.5px] font-semibold text-ink-soft">Calories · last 7 days</p>
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-leaf">
+                      <TrendUp className="h-3 w-3" />
+                      steady
+                    </span>
+                  </div>
+                  <svg viewBox="0 0 320 96" className="mt-2 h-auto w-full" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="marketing-area" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--color-brand)" stopOpacity="0.22" />
+                        <stop offset="100%" stopColor="var(--color-brand)" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    {[0, 1, 2].map((line) => (
+                      <line
+                        key={line}
+                        x1="0"
+                        x2="320"
+                        y1={16 + line * 28}
+                        y2={16 + line * 28}
+                        stroke="var(--color-line-soft)"
+                      />
+                    ))}
+                    <path
+                      d="M 8 70 C 50 58, 62 48, 92 54 C 126 61, 136 40, 168 44 C 202 48, 216 30, 246 34 C 276 38, 288 26, 312 22 L 312 96 L 8 96 Z"
+                      fill="url(#marketing-area)"
                     />
+                    <path
+                      d="M 8 70 C 50 58, 62 48, 92 54 C 126 61, 136 40, 168 44 C 202 48, 216 30, 246 34 C 276 38, 288 26, 312 22"
+                      fill="none"
+                      stroke="var(--color-brand)"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                    />
+                    {[
+                      [8, 70],
+                      [92, 54],
+                      [168, 44],
+                      [246, 34],
+                      [312, 22],
+                    ].map(([x, y]) => (
+                      <circle
+                        key={x}
+                        cx={x}
+                        cy={y}
+                        r="3"
+                        fill="var(--color-surface)"
+                        stroke="var(--color-brand)"
+                        strokeWidth="2"
+                      />
+                    ))}
+                  </svg>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between rounded-panel bg-brand-mist px-3.5 py-2.5">
+                  <span className="text-[11px] font-medium text-brand-deep">Macro split</span>
+                  <div className="flex items-center gap-3">
+                    {[
+                      { label: 'P', value: '28%', color: 'bg-macro-protein' },
+                      { label: 'C', value: '52%', color: 'bg-macro-carbs' },
+                      { label: 'F', value: '20%', color: 'bg-macro-fats' },
+                    ].map((macro) => (
+                      <span key={macro.label} className="flex items-center gap-1 text-[10.5px] text-muted">
+                        <span className={`h-2 w-2 rounded-full ${macro.color}`} />
+                        {macro.label} {macro.value}
+                      </span>
+                    ))}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ============ PERSONALIZED GOALS ============ */}
-        <section className="border-t border-line">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-            <div className="grid gap-10 lg:grid-cols-2">
-              <div>
-                <p className="eyebrow text-brand-deep">Personalized goals</p>
-                <h2 className="display mt-3 text-4xl sm:text-5xl">
-                  Targets built for your body, not everybody&apos;s.
-                </h2>
-                <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted">
-                  Tell NutriCal about yourself once — age, weight, activity,
-                  goal — and it calculates starting targets you confirm
-                  yourself. Nothing is ever overwritten silently.
-                </p>
+        {/* ---------------- Feature grid ---------------- */}
+        <section id="features" className="border-y border-line bg-surface">
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="max-w-2xl">
+              <p className="eyebrow text-brand">Everything included</p>
+              <h2 className="display mt-3 text-4xl sm:text-[46px]">
+                Built like a product, not a demo.
+              </h2>
+              <p className="mt-4 text-[15px] leading-relaxed text-muted">
+                Every feature below is live in the app — no placeholder screens,
+                no imaginary integrations.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map((feature, index) => {
+                const Icon = feature.icon;
+                return (
+                  <div
+                    key={feature.title}
+                    className="anim-rise hover-lift rounded-card border border-line bg-paper p-5"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-soft text-brand-deep">
+                      <Icon className="h-[18px] w-[18px]" />
+                    </span>
+                    <h3 className="mt-4 text-[15.5px] font-semibold tracking-tight">{feature.title}</h3>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{feature.copy}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------- CTA ---------------- */}
+        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <div className="relative overflow-hidden rounded-[28px] bg-brand-ink px-6 py-12 text-white sm:px-12 sm:py-16">
+            <div
+              className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-brand/30 blur-3xl"
+              aria-hidden="true"
+            />
+            <div className="relative max-w-2xl">
+              <p className="eyebrow text-white/50">Your next meal is information</p>
+              <h2 className="display mt-3 text-[38px] leading-[1.02] text-white sm:text-[54px]">
+                Know your food.
+                <br />
+                Know your numbers.
+                <br />
+                <span className="text-leaf">Know what to do next.</span>
+              </h2>
+              <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-white/65">
+                Create an account, set your targets, and log your first meal in
+                under a minute.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
                   href="/login"
-                  className="pressable mt-6 inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white transition hover:bg-ink-soft"
+                  className="pressable inline-flex items-center gap-2 rounded-control bg-white px-6 py-3.5 text-[14.5px] font-semibold text-brand-ink transition hover:bg-white/90"
                 >
-                  Build my plan
+                  Start with NutriCal
                   <ArrowRight className="h-4 w-4" />
                 </Link>
+                <Link
+                  href="/login"
+                  className="rounded-control border border-white/20 px-6 py-3.5 text-[14.5px] font-semibold text-white transition hover:bg-white/10"
+                >
+                  Sign in
+                </Link>
               </div>
-              <dl className="divide-y divide-line border-y border-line">
-                {GOALS.map((g) => (
-                  <div key={g.label} className="flex items-baseline justify-between py-4">
-                    <dt className="text-[15px] font-medium text-muted">{g.label}</dt>
-                    <dd className="nums display text-3xl">
-                      {g.value}
-                      <span className="ml-1 font-sans text-sm font-medium text-faint">
-                        {g.unit}
-                      </span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              <p className="mt-6 text-[11.5px] text-white/40">
+                General nutrition guidance and estimates — not medical advice.
+              </p>
             </div>
-          </div>
-        </section>
-
-        {/* ============ AI ASSESSMENT + COACH ============ */}
-        <section className="border-t border-line bg-brand-ink text-white">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-            <p className="eyebrow text-white/50">Guidance, not gimmicks</p>
-            <h2 className="display mt-3 max-w-2xl text-4xl sm:text-5xl">
-              A coach that reads your day before it speaks.
-            </h2>
-
-            <div className="mt-10 grid gap-5 lg:grid-cols-2">
-              {/* Assessment */}
-              <div className="rounded-card bg-white/[0.06] p-7 ring-1 ring-white/10 sm:p-8">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
-                    <Target className="h-[18px] w-[18px]" />
-                  </span>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">
-                    Daily assessment
-                  </p>
-                </div>
-                <blockquote className="mt-5 font-display text-[22px] font-medium leading-snug">
-                  “Your protein intake is on track today. Adding a
-                  protein-rich snack could help you reach your target.”
-                </blockquote>
-                <p className="mt-4 text-sm leading-relaxed text-white/60">
-                  Every evening, NutriCal studies your meals against your
-                  targets and writes one thoughtful summary — what went well,
-                  what could improve, and the single thing worth focusing on.
-                </p>
-              </div>
-
-              {/* Coach */}
-              <div className="rounded-card bg-white/[0.06] p-7 ring-1 ring-white/10 sm:p-8">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
-                    <Chat className="h-[18px] w-[18px]" />
-                  </span>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">
-                    AI coach
-                  </p>
-                </div>
-                <div className="mt-5 space-y-3 text-[15px]">
-                  <p className="ml-auto w-fit max-w-[90%] rounded-[18px] rounded-br-md bg-white px-4 py-2.5 text-ink">
-                    What should I eat for dinner?
-                  </p>
-                  <p className="w-fit max-w-[95%] rounded-[18px] rounded-bl-md bg-white/10 px-4 py-3 leading-relaxed text-white ring-1 ring-white/10">
-                    You&apos;re slightly short on protein today. A paneer
-                    bowl, eggs with toast, or dal with curd would help close
-                    the gap.
-                  </p>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {['What should I eat next?', 'Am I low on protein?', 'How was my day?'].map(
-                    (chip) => (
-                      <span
-                        key={chip}
-                        className="rounded-pill px-3.5 py-1.5 text-[13px] font-medium text-white/80 ring-1 ring-white/20"
-                      >
-                        {chip}
-                      </span>
-                    )
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ============ FINAL CTA ============ */}
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-          <div className="max-w-2xl">
-            <h2 className="display text-[40px] leading-[1.05] sm:text-[56px]">
-              Know your food.
-              <br />
-              Know your numbers.
-              <br />
-              <em className="display-italic text-brand-deep">
-                Know what to do next.
-              </em>
-            </h2>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                href="/login"
-                className="pressable inline-flex items-center gap-2 rounded-full bg-brand px-8 py-4 text-base font-semibold text-white shadow-card transition hover:bg-brand-deep"
-              >
-                Start with NutriCal
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-            <p className="mt-5 text-[13px] text-faint">
-              General nutrition guidance and estimates — not medical advice.
-            </p>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-7 text-[13px] text-faint sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <span className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
-              <LogoMark className="h-3.5 w-3.5" />
-            </span>
-            <span className="display text-[15px] text-ink">NutriCal</span>
-          </span>
-          <span>Eat with intent. Built for everyday nutrition.</span>
+      {/* ---------------- Footer ---------------- */}
+      <footer className="border-t border-line bg-surface">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="flex flex-col justify-between gap-8 sm:flex-row">
+            <div className="max-w-xs">
+              <Link href="/" className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-white">
+                  <LogoMark className="h-4.5 w-4.5" />
+                </span>
+                <span className="text-[17px] font-semibold tracking-tight">NutriCal</span>
+              </Link>
+              <p className="mt-3 text-[12.5px] leading-relaxed text-muted">
+                A personal nutrition companion. Eat with intent, built for
+                everyday health.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 text-[12.5px] sm:grid-cols-3">
+              <div>
+                <p className="font-semibold text-ink">Product</p>
+                <ul className="mt-3 space-y-2 text-muted">
+                  <li><a className="transition hover:text-brand" href="#features">Features</a></li>
+                  <li><a className="transition hover:text-brand" href="#how">How it works</a></li>
+                  <li><a className="transition hover:text-brand" href="#analytics">Analytics</a></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-ink">App</p>
+                <ul className="mt-3 space-y-2 text-muted">
+                  <li><Link className="transition hover:text-brand" href="/login">Sign in</Link></li>
+                  <li><Link className="transition hover:text-brand" href="/login">Create account</Link></li>
+                  <li><Link className="transition hover:text-brand" href="/assess">Build a plan</Link></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-ink">Trust</p>
+                <ul className="mt-3 space-y-2 text-muted">
+                  <li>Private by default</li>
+                  <li>No data selling</li>
+                  <li>Estimates, not medical advice</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col gap-2 border-t border-line-soft pt-5 text-[11.5px] text-faint sm:flex-row sm:items-center sm:justify-between">
+            <span>© 2026 NutriCal. All rights reserved.</span>
+            <span>Made for everyday nutrition.</span>
+          </div>
         </div>
       </footer>
     </div>
