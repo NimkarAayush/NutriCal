@@ -6,15 +6,18 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
 });
 
-// Current stable models per Google's model docs (Sept 2026).
-// 2.0/1.5-family models are shut down and return 404.
+// Fast models first. The heavier `-flash` models can stall for 25s+
+// under free-tier load, so the lighter lite models lead and act as
+// the primary path. Every attempt is capped by MODEL_TIMEOUT_MS, so a
+// stalled request falls through to the next candidate instead of
+// leaving the user on "Estimating...".
 const CANDIDATE_MODELS = [
-  'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
-  'gemini-3.7-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-3.6-flash',
 ];
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const MODEL_TIMEOUT_MS = 10000;
 
 // Safely read a message from an unknown thrown value,
 // matching the previous `err?.message` behavior without using `any`.
@@ -58,53 +61,50 @@ export async function POST(req: Request) {
     let lastError: unknown = null;
 
     for (const model of CANDIDATE_MODELS) {
-      // Retry up to 2 times per model if a 503 spike occurs
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const response = await ai.models.generateContent({
-            model,
-            contents: `Estimate realistic nutrition macros for: "${prompt}". Also estimate key micronutrients (vitamin A in mcg, vitamin C in mg, vitamin D in mcg, iron in mg, calcium in mg, potassium in mg); use 0 when negligible. Return valid JSON matching the schema.`,
-            config: {
-              responseMimeType: 'application/json',
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  meal_name: { type: Type.STRING, description: 'Clean formatted name of the meal' },
-                  calories: { type: Type.NUMBER, description: 'Total calories in kcal' },
-                  protein: { type: Type.NUMBER, description: 'Protein in grams' },
-                  carbs: { type: Type.NUMBER, description: 'Carbohydrates in grams' },
-                  fats: { type: Type.NUMBER, description: 'Fats in grams' },
-                  vitamin_a_mcg: { type: Type.NUMBER, description: 'Estimated vitamin A in micrograms (mcg RAE)' },
-                  vitamin_c_mg: { type: Type.NUMBER, description: 'Estimated vitamin C in milligrams' },
-                  vitamin_d_mcg: { type: Type.NUMBER, description: 'Estimated vitamin D in micrograms' },
-                  iron_mg: { type: Type.NUMBER, description: 'Estimated iron in milligrams' },
-                  calcium_mg: { type: Type.NUMBER, description: 'Estimated calcium in milligrams' },
-                  potassium_mg: { type: Type.NUMBER, description: 'Estimated potassium in milligrams' },
-                },
-                required: ['meal_name', 'calories', 'protein', 'carbs', 'fats'],
-              },
-            },
-          });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), MODEL_TIMEOUT_MS);
 
-          const text = response.text;
-          if (text) {
-            const parsedData = JSON.parse(text);
-            return NextResponse.json(parsedData);
-          }
-        } catch (err: unknown) {
-          lastError = err;
-          // If 503 temporary overload, pause briefly before retrying or moving on
-          const errStatus =
-            typeof err === 'object' && err !== null && 'status' in err
-              ? (err as { status: unknown }).status
-              : undefined;
-          const errMessage = readErrorMessage(err);
-          if (errStatus === 'UNAVAILABLE' || errMessage.includes('503')) {
-            await sleep(1000);
-            continue;
-          }
-          break; // For 404 or other errors, immediately switch model
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: `Estimate realistic nutrition macros for: "${prompt}". Also estimate key micronutrients (vitamin A in mcg, vitamin C in mg, vitamin D in mcg, iron in mg, calcium in mg, potassium in mg); use 0 when negligible. Return valid JSON matching the schema.`,
+          config: {
+            responseMimeType: 'application/json',
+            abortSignal: controller.signal,
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                meal_name: { type: Type.STRING, description: 'Clean formatted name of the meal' },
+                calories: { type: Type.NUMBER, description: 'Total calories in kcal' },
+                protein: { type: Type.NUMBER, description: 'Protein in grams' },
+                carbs: { type: Type.NUMBER, description: 'Carbohydrates in grams' },
+                fats: { type: Type.NUMBER, description: 'Fats in grams' },
+                vitamin_a_mcg: { type: Type.NUMBER, description: 'Estimated vitamin A in micrograms (mcg RAE)' },
+                vitamin_c_mg: { type: Type.NUMBER, description: 'Estimated vitamin C in milligrams' },
+                vitamin_d_mcg: { type: Type.NUMBER, description: 'Estimated vitamin D in micrograms' },
+                iron_mg: { type: Type.NUMBER, description: 'Estimated iron in milligrams' },
+                calcium_mg: { type: Type.NUMBER, description: 'Estimated calcium in milligrams' },
+                potassium_mg: { type: Type.NUMBER, description: 'Estimated potassium in milligrams' },
+              },
+              required: ['meal_name', 'calories', 'protein', 'carbs', 'fats'],
+            },
+          },
+        });
+
+        const text = response.text;
+        if (text) {
+          const parsedData = JSON.parse(text);
+          return NextResponse.json(parsedData);
         }
+      } catch (err: unknown) {
+        // An abort means this model stalled past the deadline, so move
+        // straight on to the next candidate instead of retrying it.
+        lastError =
+          err instanceof Error && err.name === 'AbortError'
+            ? new Error('The AI took too long to respond. Please try again.')
+            : err;
+      } finally {
+        clearTimeout(timeout);
       }
     }
 

@@ -7,15 +7,18 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
 });
 
-// Current stable models per Google's model docs (Sept 2026).
-// 2.0/1.5-family models are shut down and return 404.
+// Fast models first. The heavier `-flash` models can stall for 25s+
+// under free-tier load, so the lighter lite models lead and act as
+// the primary path. Every attempt is capped by MODEL_TIMEOUT_MS, so a
+// stalled request falls through to the next candidate instead of
+// leaving the user waiting indefinitely.
 const CANDIDATE_MODELS = [
-  'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
-  'gemini-3.7-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-3.6-flash',
 ];
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const MODEL_TIMEOUT_MS = 10000;
 
 export async function POST(req: Request) {
   try {
@@ -47,11 +50,13 @@ export async function POST(req: Request) {
     let lastError: unknown = null;
 
     for (const model of CANDIDATE_MODELS) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const response = await ai.models.generateContent({
-            model,
-            contents: `You are a nutrition assessment assistant for NutriCal. Analyze the conversation and extract structured information.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), MODEL_TIMEOUT_MS);
+
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: `You are a nutrition assessment assistant for NutriCal. Analyze the conversation and extract structured information.
 
 Conversation history:
 ${messages.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join('\n')}
@@ -70,63 +75,65 @@ If all required fields (primary_goal, age, height_cm, weight_kg, activity_level)
 Otherwise, return type "question" with the next most important question to ask. Keep questions conversational and brief.
 
 Return JSON matching the schema.`,
-            config: {
-              responseMimeType: 'application/json',
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  type: { type: Type.STRING, enum: ['question', 'summary'] },
-                  message: { type: Type.STRING },
-                  collected: {
-                    type: Type.OBJECT,
-                    properties: {
-                      primary_goal: { type: Type.STRING },
-                      age: { type: Type.NUMBER },
-                      height_cm: { type: Type.NUMBER },
-                      weight_kg: { type: Type.NUMBER },
-                      activity_level: { type: Type.STRING },
-                      diet_type: { type: Type.STRING },
-                      meals_per_day: { type: Type.NUMBER },
-                      foods_to_avoid: { type: Type.STRING },
-                    },
-                  },
-                  goals: {
-                    type: Type.OBJECT,
-                    properties: {
-                      calories: { type: Type.NUMBER },
-                      protein: { type: Type.NUMBER },
-                      carbs: { type: Type.NUMBER },
-                      fats: { type: Type.NUMBER },
-                    },
+          config: {
+            responseMimeType: 'application/json',
+            abortSignal: controller.signal,
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                type: { type: Type.STRING, enum: ['question', 'summary'] },
+                message: { type: Type.STRING },
+                collected: {
+                  type: Type.OBJECT,
+                  properties: {
+                    primary_goal: { type: Type.STRING },
+                    age: { type: Type.NUMBER },
+                    height_cm: { type: Type.NUMBER },
+                    weight_kg: { type: Type.NUMBER },
+                    activity_level: { type: Type.STRING },
+                    diet_type: { type: Type.STRING },
+                    meals_per_day: { type: Type.NUMBER },
+                    foods_to_avoid: { type: Type.STRING },
                   },
                 },
-                required: ['type', 'message'],
+                goals: {
+                  type: Type.OBJECT,
+                  properties: {
+                    calories: { type: Type.NUMBER },
+                    protein: { type: Type.NUMBER },
+                    carbs: { type: Type.NUMBER },
+                    fats: { type: Type.NUMBER },
+                  },
+                },
               },
+              required: ['type', 'message'],
             },
-          });
+          },
+        });
 
-          const text = response.text;
-          if (text) {
-            const parsedData = JSON.parse(text);
+        const text = response.text;
+        if (text) {
+          const parsedData = JSON.parse(text);
 
-            // If summary, calculate goals from collected data
-            if (parsedData.type === 'summary' && parsedData.collected) {
-              const result = calculateGoalsFromProfile(parsedData.collected);
-              if (result.canCalculate) {
-                parsedData.goals = result.goals;
-              }
+          // If summary, calculate goals from collected data
+          if (parsedData.type === 'summary' && parsedData.collected) {
+            const result = calculateGoalsFromProfile(parsedData.collected);
+            if (result.canCalculate) {
+              parsedData.goals = result.goals;
             }
+          }
 
-            return NextResponse.json(parsedData);
-          }
-        } catch (err: unknown) {
-          lastError = err;
-          if (err instanceof Error && err.message.includes('503')) {
-            await sleep(1000);
-            continue;
-          }
-          break;
+          return NextResponse.json(parsedData);
         }
+      } catch (err: unknown) {
+        // An abort means this model stalled past the deadline, so move
+        // straight on to the next candidate instead of retrying it.
+        lastError =
+          err instanceof Error && err.name === 'AbortError'
+            ? new Error('The AI took too long to respond. Please try again.')
+            : err;
+      } finally {
+        clearTimeout(timeout);
       }
     }
 

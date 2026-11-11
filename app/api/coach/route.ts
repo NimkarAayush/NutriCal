@@ -7,15 +7,18 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
 });
 
-// Current stable models per Google's model docs (Sept 2026).
-// 2.0/1.5-family models are shut down and return 404.
+// Fast models first. The heavier `-flash` models can stall for 25s+
+// under free-tier load, so the lighter lite models lead and act as
+// the primary path. Every attempt is capped by MODEL_TIMEOUT_MS, so a
+// stalled request falls through to the next candidate instead of
+// leaving the user waiting indefinitely.
 const CANDIDATE_MODELS = [
-  'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
-  'gemini-3.7-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-3.6-flash',
 ];
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const MODEL_TIMEOUT_MS = 10000;
 
 export async function POST(req: Request) {
   try {
@@ -75,11 +78,13 @@ export async function POST(req: Request) {
     let lastError: unknown = null;
 
     for (const model of CANDIDATE_MODELS) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const response = await ai.models.generateContent({
-            model,
-            contents: `${context}
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), MODEL_TIMEOUT_MS);
+
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: `${context}
 
 Conversation history:
 ${(history || [])
@@ -95,62 +100,64 @@ Respond as a nutrition education and wellness assistant. Be concise, practical, 
 If the user wants to log a meal, return type "log_meal" with the meal data, including estimated micronutrients (vitamin A in mcg, vitamin C in mg, vitamin D in mcg, iron in mg, calcium in mg, potassium in mg; use 0 when negligible).
 If the user wants to change their nutrition goals, return type "change_goals" with the new goals.
 Otherwise, return type "response" with a text response.`,
-            config: {
-              responseMimeType: 'application/json',
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  type: {
-                    type: Type.STRING,
-                    enum: ['response', 'log_meal', 'change_goals'],
-                  },
-                  response: { type: Type.STRING },
-                  action: {
-                    type: Type.OBJECT,
-                    properties: {
-                      type: { type: Type.STRING },
-                      data: {
-                        type: Type.OBJECT,
-                        properties: {
-                          meal_name: { type: Type.STRING },
-                          calories: { type: Type.NUMBER },
-                          protein: { type: Type.NUMBER },
-                          carbs: { type: Type.NUMBER },
-                          fats: { type: Type.NUMBER },
-                          vitamin_a_mcg: { type: Type.NUMBER },
-                          vitamin_c_mg: { type: Type.NUMBER },
-                          vitamin_d_mcg: { type: Type.NUMBER },
-                          iron_mg: { type: Type.NUMBER },
-                          calcium_mg: { type: Type.NUMBER },
-                          potassium_mg: { type: Type.NUMBER },
-                          calorie_target: { type: Type.NUMBER },
-                          protein_target: { type: Type.NUMBER },
-                          carbs_target: { type: Type.NUMBER },
-                          fats_target: { type: Type.NUMBER },
-                        },
+          config: {
+            responseMimeType: 'application/json',
+            abortSignal: controller.signal,
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                type: {
+                  type: Type.STRING,
+                  enum: ['response', 'log_meal', 'change_goals'],
+                },
+                response: { type: Type.STRING },
+                action: {
+                  type: Type.OBJECT,
+                  properties: {
+                    type: { type: Type.STRING },
+                    data: {
+                      type: Type.OBJECT,
+                      properties: {
+                        meal_name: { type: Type.STRING },
+                        calories: { type: Type.NUMBER },
+                        protein: { type: Type.NUMBER },
+                        carbs: { type: Type.NUMBER },
+                        fats: { type: Type.NUMBER },
+                        vitamin_a_mcg: { type: Type.NUMBER },
+                        vitamin_c_mg: { type: Type.NUMBER },
+                        vitamin_d_mcg: { type: Type.NUMBER },
+                        iron_mg: { type: Type.NUMBER },
+                        calcium_mg: { type: Type.NUMBER },
+                        potassium_mg: { type: Type.NUMBER },
+                        calorie_target: { type: Type.NUMBER },
+                        protein_target: { type: Type.NUMBER },
+                        carbs_target: { type: Type.NUMBER },
+                        fats_target: { type: Type.NUMBER },
                       },
-                      message: { type: Type.STRING },
                     },
+                    message: { type: Type.STRING },
                   },
                 },
-                required: ['type'],
               },
+              required: ['type'],
             },
-          });
+          },
+        });
 
-          const text = response.text;
-          if (text) {
-            const parsed = JSON.parse(text);
-            return NextResponse.json(parsed);
-          }
-        } catch (err: unknown) {
-          lastError = err;
-          if (err instanceof Error && err.message.includes('503')) {
-            await sleep(1000);
-            continue;
-          }
-          break;
+        const text = response.text;
+        if (text) {
+          const parsed = JSON.parse(text);
+          return NextResponse.json(parsed);
         }
+      } catch (err: unknown) {
+        // An abort means this model stalled past the deadline, so move
+        // straight on to the next candidate instead of retrying it.
+        lastError =
+          err instanceof Error && err.name === 'AbortError'
+            ? new Error('The AI took too long to respond. Please try again.')
+            : err;
+      } finally {
+        clearTimeout(timeout);
       }
     }
 
