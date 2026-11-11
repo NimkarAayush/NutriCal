@@ -337,35 +337,48 @@ export default function DashboardPage() {
 
   // --- 7-day trend ---
   const weekDates = useMemo(() => lastNDates(7), []);
-  const trendSeries: ChartSeries[] = useMemo(
-    () => [
+  // Calories (kcal) and macros (grams) can't share one axis without
+  // flattening the macros, so every series is plotted as a percentage of
+  // its own daily target. That makes the four lines directly comparable
+  // and lets a single 100% reference line stand for all of them.
+  const trendSeries: ChartSeries[] = useMemo(() => {
+    const asPercent = (value: number, target: number) =>
+      target > 0 ? Math.round((value / target) * 100) : 0;
+    return [
       {
         key: 'calories',
         label: 'Calories',
         color: 'var(--color-brand)',
-        values: weekDates.map((date) => weekTotals[date]?.calories ?? 0),
+        values: weekDates.map((date) =>
+          asPercent(weekTotals[date]?.calories ?? 0, goals.calories)
+        ),
       },
       {
         key: 'protein',
         label: 'Protein',
         color: 'var(--color-macro-protein)',
-        values: weekDates.map((date) => weekTotals[date]?.protein ?? 0),
+        values: weekDates.map((date) =>
+          asPercent(weekTotals[date]?.protein ?? 0, goals.protein)
+        ),
       },
       {
         key: 'carbs',
         label: 'Carbs',
         color: 'var(--color-macro-carbs)',
-        values: weekDates.map((date) => weekTotals[date]?.carbs ?? 0),
+        values: weekDates.map((date) =>
+          asPercent(weekTotals[date]?.carbs ?? 0, goals.carbs)
+        ),
       },
       {
         key: 'fats',
         label: 'Fats',
         color: 'var(--color-macro-fats)',
-        values: weekDates.map((date) => weekTotals[date]?.fats ?? 0),
+        values: weekDates.map((date) =>
+          asPercent(weekTotals[date]?.fats ?? 0, goals.fats)
+        ),
       },
-    ],
-    [weekDates, weekTotals]
-  );
+    ];
+  }, [weekDates, weekTotals, goals]);
   const trendLabels = useMemo(
     () => weekDates.map((date) => (date === today ? 'Today' : formatShortDay(date))),
     [weekDates, today]
@@ -854,7 +867,9 @@ export default function DashboardPage() {
             <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="text-[14px] font-semibold">Nutrition trend</p>
-                <p className="mt-0.5 text-[11.5px] text-muted">Last 7 days</p>
+                <p className="mt-0.5 text-[11.5px] text-muted">
+                  Last 7 days · % of each daily target
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <ChartLegend series={trendSeries} />
@@ -863,8 +878,9 @@ export default function DashboardPage() {
             <LineChart
               labels={trendLabels}
               series={trendSeries}
-              goal={goals.calories}
-              goalLabel={`${goals.calories.toLocaleString()} kcal goal`}
+              goal={100}
+              goalLabel="100% of target"
+              valueSuffix="%"
               height={214}
             />
           </Card>
@@ -899,7 +915,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ---------- Log meal · focus/targets ---------- */}
-        <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <div className="grid items-start gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
           <Card id="log-meal" className="anim-rise scroll-mt-24 p-4 sm:p-5" style={{ animationDelay: '80ms' }}>
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>

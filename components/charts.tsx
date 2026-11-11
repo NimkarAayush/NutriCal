@@ -77,12 +77,22 @@ export interface ChartSeries {
   values: number[];
 }
 
-function niceMax(value: number): number {
-  if (value <= 0) return 10;
+// Picks a readable axis step. The ladder is deliberately fine-grained:
+// jumping straight from 2 to 5 wastes a lot of vertical space (a 2,250 kcal
+// day on a 5,000 axis looks flat).
+function niceStep(value: number): number {
+  if (value <= 0) return 1;
   const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
   const normalized = value / magnitude;
-  const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  const steps = [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+  const step = steps.find((candidate) => normalized <= candidate) ?? 10;
   return step * magnitude;
+}
+
+// Formats an axis label. Larger values collapse to "k" so the axis stays narrow.
+function formatTick(value: number): string {
+  if (value >= 1000) return `${Math.round(value / 100) / 10}k`;
+  return String(value);
 }
 
 function buildSmoothPath(points: Array<[number, number]>): string {
@@ -120,9 +130,13 @@ export function LineChart({
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
 
-  const max = useMemo(() => {
+  // Five evenly spaced gridlines on a "nice" step, so the axis reads
+  // 0 / 500 / 1k / 1.5k / 2k instead of arbitrary rounded values.
+  const { max, step } = useMemo(() => {
     const values = series.flatMap((s) => s.values);
-    return niceMax(Math.max(...values, goal ?? 0, 1) * 1.12);
+    const peak = Math.max(...values, goal ?? 0, 1);
+    const chosen = niceStep((peak * 1.1) / 4);
+    return { max: chosen * 4, step: chosen };
   }, [series, goal]);
 
   const count = Math.max(labels.length, 2);
@@ -149,7 +163,7 @@ export function LineChart({
 
       {ticks.map((tick) => {
         const y = padding.top + innerH * tick;
-        const value = Math.round(max * (1 - tick));
+        const value = step * (4 - Math.round(tick * 4));
         return (
           <g key={tick}>
             <line
@@ -167,7 +181,7 @@ export function LineChart({
               fontSize="10"
               fill="var(--color-faint)"
             >
-              {value >= 1000 ? `${Math.round(value / 1000)}k` : value}
+              {formatTick(value)}
             </text>
           </g>
         );
@@ -187,10 +201,14 @@ export function LineChart({
           {goalLabel && (
             <text
               x={width - padding.right}
-              y={yFor(goal) - 6}
+              y={Math.max(yFor(goal) - 6, padding.top + 9)}
               textAnchor="end"
               fontSize="9"
               fill="var(--color-faint)"
+              // Halo keeps the label readable where a series line runs beneath it.
+              stroke="var(--color-surface)"
+              strokeWidth="3"
+              paintOrder="stroke"
             >
               {goalLabel}
             </text>

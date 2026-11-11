@@ -372,7 +372,7 @@ export default function AssessPage() {
                 )}
 
                 <div
-                  className={`max-w-[80%] px-4 py-3 text-[14.5px] leading-relaxed ${
+                  className={`max-w-[80%] whitespace-pre-wrap break-words px-4 py-3 text-[14.5px] leading-relaxed ${
                     msg.role === 'user'
                       ? 'rounded-2xl rounded-br-md bg-gradient-to-br from-brand to-brand-deep text-white shadow-lift'
                       : 'rounded-2xl rounded-bl-md border border-line-soft bg-surface text-ink-soft shadow-card'
