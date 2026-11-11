@@ -82,6 +82,9 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState<RangeOption>(7);
   const [rows, setRows] = useState<MealTotalsRow[]>([]);
   const [goals, setGoals] = useState<Goals>(DEFAULT_GOALS);
+  const [goalsSource, setGoalsSource] = useState<'saved' | 'calculated' | 'default'>(
+    'default'
+  );
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [weight, setWeight] = useState<number | null>(null);
@@ -117,11 +120,14 @@ export default function AnalyticsPage() {
           .order('logged_date', { ascending: true }),
       ]);
 
+      // A missing profile or targets row is expected for new accounts
+      // (PGRST116 = 0 rows) and degrades to calculated/default goals.
+      // Only surface a hard error when the meal history itself is unreadable.
       if (profileError && profileError.code !== 'PGRST116') {
-        setError(`Could not load your profile: ${profileError.message}`);
+        console.error('Profile load failed:', profileError.message);
       }
       if (goalError && goalError.code !== 'PGRST116') {
-        setError(`Could not load your targets: ${goalError.message}`);
+        console.error('Targets load failed:', goalError.message);
       }
       if (mealError) {
         setError(`Could not load meal history: ${mealError.message}`);
@@ -132,6 +138,7 @@ export default function AnalyticsPage() {
       if (profileRow?.height_cm != null) setHeight(Number(profileRow.height_cm));
 
       let activeGoals: Goals = DEFAULT_GOALS;
+      let source: 'saved' | 'calculated' | 'default' = 'default';
       if (goalRow) {
         activeGoals = {
           calories: Number(goalRow.calorie_target),
@@ -139,6 +146,7 @@ export default function AnalyticsPage() {
           carbs: Number(goalRow.carbs_target),
           fats: Number(goalRow.fats_target),
         };
+        source = 'saved';
       } else if (profileRow) {
         const profileForGoals: ProfileForGoals = {
           age: profileRow.age,
@@ -149,10 +157,14 @@ export default function AnalyticsPage() {
           primary_goal: profileRow.primary_goal,
         };
         const calculated = calculateGoalsFromProfile(profileForGoals);
-        if (calculated.canCalculate) activeGoals = calculated.goals;
+        if (calculated.canCalculate) {
+          activeGoals = calculated.goals;
+          source = 'calculated';
+        }
       }
 
       setGoals(activeGoals);
+      setGoalsSource(source);
       setRows((mealRows ?? []) as MealTotalsRow[]);
       setLoading(false);
     };
@@ -340,6 +352,19 @@ export default function AnalyticsPage() {
               {RANGE_LABEL[range]} · {rangeData.loggedDays} logged day
               {rangeData.loggedDays === 1 ? '' : 's'} of {range}
             </p>
+            {goalsSource !== 'saved' && (
+              <p className="mt-1.5 text-[12px] text-faint">
+                Comparing against{' '}
+                {goalsSource === 'calculated' ? 'calculated' : 'default'} targets
+                {' — '}
+                <button
+                  onClick={() => router.push('/dashboard#goals')}
+                  className="font-semibold text-brand transition hover:text-brand-deep"
+                >
+                  set your own
+                </button>
+              </p>
+            )}
           </div>
 
           <div className="flex rounded-control border border-line bg-surface p-1 shadow-card">
