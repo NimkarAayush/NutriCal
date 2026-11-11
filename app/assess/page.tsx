@@ -45,6 +45,51 @@ const INITIAL_MESSAGE: Message = {
     "Hi! I'm here to help you build your personalized nutrition plan. Let's start with the basics — what's your main goal? For example: lose weight, gain muscle, or just eat healthier.",
 };
 
+function buildOpeningMessages(
+  profile: {
+    age?: number | null;
+    height_cm?: number | null;
+    weight_kg?: number | null;
+    activity_level?: string | null;
+    primary_goal?: string | null;
+    diet_type?: string | null;
+    meals_per_day?: number | null;
+  } | null
+): Message[] {
+  // When the profile already answers the core intake fields we can open the
+  // conversation from there instead of making the user type them all over again.
+  const age = profile?.age;
+  const heightCm = profile?.height_cm;
+  const weightKg = profile?.weight_kg;
+  const activity = profile?.activity_level;
+  const goal = profile?.primary_goal;
+
+  const hasCore =
+    age != null && heightCm != null && weightKg != null && !!activity && !!goal;
+  if (!hasCore) return [INITIAL_MESSAGE];
+
+  const facts = [
+    `age ${age}`,
+    `${heightCm} cm tall`,
+    `weighing ${weightKg} kg`,
+    `${activity} activity level`,
+    `goal: ${goal}`,
+  ];
+
+  return [
+    {
+      role: 'assistant',
+      content: `Great — I've pulled the details from your profile: ${facts.join(
+        ', '
+      )}. I've got the foundation I need to build you a targeted plan. Can you confirm these details are current — or tell me what's changed — and I'll build your plan right away?`,
+    },
+    {
+      role: 'user',
+      content: 'Yes, those details are accurate. Please build my nutrition plan.',
+    },
+  ];
+}
+
 const STORAGE_PREFIX = 'nutrical:assess:chat:v1';
 const MAX_STORED_MESSAGES = 60;
 
@@ -122,6 +167,47 @@ export default function AssessPage() {
 
   const storageKey = user ? `${STORAGE_PREFIX}:${user.id}` : null;
 
+  const sendMessage = async (text: string, baseMessages: Message[] = messages) => {
+    const trimmed = text.trim();
+    if (!trimmed || isTyping) return;
+
+    const userMessage: Message = { role: 'user', content: trimmed };
+    const newMessages = [...baseMessages, userMessage];
+    setMessages(newMessages);
+    setInput('');
+    setIsTyping(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/assess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: newMessages }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: data.message,
+        };
+        setMessages([...newMessages, assistantMessage]);
+        setResult(data);
+      } else {
+        setError(data.error || 'Failed to get response');
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to get response');
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleSend = () => {
+    if (!input.trim() || isTyping) return;
+    void sendMessage(input.trim());
+  };
+
   // Auth check + restore the saved conversation
   useEffect(() => {
     const checkAuth = async () => {
@@ -136,7 +222,9 @@ export default function AssessPage() {
 
       const { data: profileRow } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select(
+          'full_name, age, height_cm, weight_kg, activity_level, primary_goal, diet_type, meals_per_day, foods_to_avoid'
+        )
         .eq('user_id', user.id)
         .single();
       if (profileRow?.full_name) setProfileName(profileRow.full_name);
@@ -146,7 +234,13 @@ export default function AssessPage() {
         setMessages(saved.messages);
         setResult(saved.result);
       } else {
-        setMessages([INITIAL_MESSAGE]);
+        const opening = buildOpeningMessages(profileRow);
+        setMessages(opening);
+        // When the profile already answers the core intake fields we skip the
+        // question-by-question intake and go straight to building the plan.
+        if (opening.length > 1) {
+          void sendMessage(opening[1].content, opening);
+        }
       }
 
       setHydrated(true);
@@ -185,41 +279,6 @@ export default function AssessPage() {
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
   }, [input]);
-
-  const handleSend = async () => {
-    if (!input.trim() || isTyping) return;
-
-    const userMessage: Message = { role: 'user', content: input.trim() };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setInput('');
-    setIsTyping(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/assess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: data.message,
-        };
-        setMessages([...newMessages, assistantMessage]);
-        setResult(data);
-      } else {
-        setError(data.error || 'Failed to get response');
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to get response');
-    } finally {
-      setIsTyping(false);
-    }
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
